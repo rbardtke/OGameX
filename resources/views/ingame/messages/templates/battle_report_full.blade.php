@@ -177,7 +177,7 @@
             <div class="common_info">
 
                 <span id="attacker_select_combatreport" data-member-name="{{ $attacker_name }}">
-                                              <span>{{ $attacker_name }} from Moon 2:488:1</span>
+                                              <span>{{ $attacker_name }} from Moon 2:488:1 </span>
                                      </span>
                 <span class="participant_label {{ $attacker_class }}">@lang('Attacker'):</span>
             </div>

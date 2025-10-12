@@ -14,6 +14,7 @@ use OGame\Http\Controllers\GalaxyController;
 use OGame\Http\Controllers\HighscoreController;
 use OGame\Http\Controllers\LanguageController;
 use OGame\Http\Controllers\MerchantController;
+use OGame\Http\Controllers\SimulationController;
 use OGame\Http\Controllers\MessagesController;
 use OGame\Http\Controllers\NotesController;
 use OGame\Http\Controllers\OptionsController;
@@ -112,6 +113,7 @@ Route::middleware(['auth', 'globalgame', 'locale'])->group(function () {
 
     // Misc
     Route::get('/merchant', [MerchantController::class, 'index'])->name('merchant.index');
+    Route::get('/simulation', [SimulationController::class, 'index'])->name('simulation.index');
 
     Route::get('/alliance', [AllianceController::class, 'index'])->name('alliance.index');
     Route::get('/ajax/alliance/create', [AllianceController::class, 'ajaxCreate'])->name('alliance.ajax.create');

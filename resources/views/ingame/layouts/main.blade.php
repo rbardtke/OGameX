@@ -193,7 +193,7 @@
                     </span>
                     </div>
                 </div>
-                <div class="resource_tile population">
+                <!--<div class="resource_tile population">
                     <div id="population_box" class="population tooltipHTML resource ipiHintable tpd-hideOnClickOutside"
                          title="Population|<table class=&quot;resourceTooltip&quot;><tr><th>Available:</th><td><span class=&quot;overmark&quot;>100</span></td></tr><tr><th>Living Space
 </th><td><span class=&quot;overmark&quot;>0</span></td></tr><tr><th>Satisfied</th><td><span class=&quot;undermark&quot;>0</span></td></tr><tr><th>Hungry</th><td><span class=&quot;overmark&quot;>0</span></td></tr><tr><th>Growth rate</th><td><span class=&quot;&quot;>±0</span></td></tr><tr><th>Bunker Space
@@ -226,7 +226,7 @@
                         <span id="resources_darkmatter" data-raw="19890" class="overlay">19,890</span>
                     </span>
                     </div>
-                </div>
+                </div>-->
             </div>
         </div>
         <div id="commandercomponent" class="">
@@ -386,7 +386,7 @@ Combat simulation save slots +20">
                         </a>
                     </li>
 
-                    <li>
+                    <!--<li>
                         <span class="menu_icon">
                             <a href="{{ route('merchant.index') }}#page=traderResources&amp;animation=false"
                                class="trader tooltipRight js_hideTipOnMobile "
@@ -403,8 +403,26 @@ Combat simulation save slots +20">
                         >
                             <span class="textlabel">@lang('Merchant')</span>
                         </a>
-                    </li>
+                    </li>-->
 
+                    <li>
+                        <span class="menu_icon">
+                            <a href="{{ route('simulation.index') }}"
+                               class="sim tooltipRight js_hideTipOnMobile "
+                               target="_self"
+                               title="Resource Market">
+                                <div class="menuImage simOverview {{(Request::is('simulation') ? 'highlighted' : '') }}">
+                                </div>
+                            </a>
+                        </span>
+                        <a class="menubutton premiumHighligt {{(Request::is('simulation') ? 'selected' : '') }}"
+                           href="{{ route('simulation.index') }}"
+                           accesskey=""
+                           target="_self"
+                        >
+                            <span class="textlabel">@lang('Simulation')</span>
+                        </a>
+                    </li>
                     <li>
                         <span class="menu_icon">
                             <a href="{{ route('techtree.ajax', ['tab' => 3, 'object_id' => 1, 'open' => 'all']) }}"
@@ -481,7 +499,7 @@ Combat simulation save slots +20">
                             <span class="textlabel">@lang('Galaxy')</span>
                         </a>
                     </li>
-
+                    <!--
                     <li>
                         <span class="menu_icon">
                             <div class="menuImage alliance {{(Request::is('alliance') ? 'highlighted' : '') }}"></div>
@@ -524,7 +542,7 @@ Combat simulation save slots +20">
                         >
                             <span class="textlabel">@lang('Shop')</span>
                         </a>
-                    </li>
+                    </li>-->
                 </ul>
 
                 <div id="toolLinksWrapper">
