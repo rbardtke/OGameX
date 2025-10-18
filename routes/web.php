@@ -114,6 +114,9 @@ Route::middleware(['auth', 'globalgame', 'locale'])->group(function () {
     // Misc
     Route::get('/merchant', [MerchantController::class, 'index'])->name('merchant.index');
     Route::get('/simulation', [SimulationController::class, 'index'])->name('simulation.index');
+    Route::get('/battlesimulator', [BattleSimulatorController::class, 'index'])->name('battlesimulator');
+Route::post('/battlesimulator/simulate', [BattleSimulatorController::class, 'simulate'])->name('battlesimulator.simulate');
+
 
     Route::get('/alliance', [AllianceController::class, 'index'])->name('alliance.index');
     Route::get('/ajax/alliance/create', [AllianceController::class, 'ajaxCreate'])->name('alliance.ajax.create');
