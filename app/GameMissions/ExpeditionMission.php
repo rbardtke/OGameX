@@ -47,7 +47,7 @@ class ExpeditionMission extends GameMission
         // 'aliens' => 26,        // 2.6% - Find aliens (combat) - TODO: implement combat
         'delay' => 70,            // 7.0% - Fleet has delay
         'speedup' => 20,          // 2.0% - Fleet returns early
-        'nothing' => 270,         // 27.0% - Find nothing (includes pirates/aliens weight for now)
+        'nothing' => 265,         // 26.5% - Find nothing (includes pirates/aliens weight for now)
         'black_hole' => 3,        // 0.33% - Black hole (fleet loss)
         'merchant' => 7,          // 0.7% - Find merchant
     ];
@@ -120,7 +120,12 @@ class ExpeditionMission extends GameMission
                 break;
             case ExpeditionOutcomeType::GainShips:
                 $foundUnits = $this->processExpeditionGainShipsOutcome($mission);
-                $units->addCollection($foundUnits);
+                if ($foundUnits->getAmount() > 0) {
+                    $units->addCollection($foundUnits);
+                } else {
+                    // No ships could be granted for this fleet -> treat as Failed
+                    $this->processExpeditionFailedOutcome($mission);
+                }
                 break;
             case ExpeditionOutcomeType::GainDarkMatter:
                 $this->processExpeditionGainDarkMatterOutcome($mission);
@@ -196,17 +201,39 @@ class ExpeditionMission extends GameMission
         // Load the mission owner user
         $player = $this->playerServiceFactory->make($mission->user_id, true);
 
-        // Delays can be 50%, 60%, 70%, 80%, 90%, 100%, 200%, 300%, or 500% of holding time
-        $delayMultipliers = [0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 2.0, 3.0, 5.0];
+        // Define weighted delay factors 2,3,5 probability of 89%, 10%, 1%
+        $delayFactors = [
+            2 => 89,
+            3 => 10,
+            5 => 1
+        ];
 
-        // Pick a random delay multiplier
-        $selectedMultiplier = $delayMultipliers[array_rand($delayMultipliers)];
+        // Calculate total weight and generate random number
+        $totalWeight = array_sum($delayFactors);
+        $rand = mt_rand(1, $totalWeight);
 
-        // Calculate the additional return trip time based on holding time only
-        // The delay is added to the return trip, not the holding time itself
-        $additionalReturnTripTime = intval($mission->time_holding * $selectedMultiplier);
+        // Select multiplier based on cumulative weight
+        $cumulativeWeight = 0;
+        $selectedMultiplier = 2; // fallback default
 
-        // Send a message to the player with the failure and delay outcome.
+        foreach ($delayFactors as $factor => $weight) {
+            $cumulativeWeight += $weight;
+            if ($rand <= $cumulativeWeight) {
+                $selectedMultiplier = $factor;
+                break;
+            }
+        }
+
+        // Calculate base additional return trip time based on holding time
+        // Formula: Base Delay = Delay factor × Holding time
+        $baseAdditionalReturnTripTime = $mission->time_holding * $selectedMultiplier;
+
+        // Apply universe fleet speed modifier
+        // Formula: Actual Delay = Base Delay / Fleet Speed
+        $fleetSpeed = $this->settings->fleetSpeed();
+        $additionalReturnTripTime = intval($baseAdditionalReturnTripTime / $fleetSpeed);
+
+        // Send a message to the player with the failure and delay outcome
         $message_variation_id = ExpeditionFailedAndDelay::getRandomMessageVariationId();
         $this->messageService->sendSystemMessageToPlayer($player, ExpeditionFailedAndDelay::class, ['message_variation_id' => $message_variation_id]);
 
@@ -306,10 +333,9 @@ class ExpeditionMission extends GameMission
         $fleetUnits = $this->fleetMissionService->getFleetUnits(mission: $mission);
         $objectService = app(ObjectService::class);
 
-        // Define expedition hierarchy levels - each level can find ships at that level and all lower levels.
+        // Define expedition hierarchy levels (eligibility + ceiling).
         // TODO: when implementing pathfinder and reaper units, add them to the levels array.
         // Pathfinder = between cruiser and battle_ship, Reaper = after destroyer.
-        // NOTE: some ships are not able to be found on expeditions on purpose: deathstar, colony ship, recycler, solar satellite.
         $expeditionLevels = [
             1 => ['small_cargo', 'light_fighter', 'espionage_probe'],
             2 => ['large_cargo'],
@@ -348,9 +374,13 @@ class ExpeditionMission extends GameMission
             $maxExpeditionLevel = 1;
         }
 
-        // Collect all ships that can be found at this level and below
+        // Collect all ships that can be found up to one tier above the highest tier present,
+        // capped at the highest defined tier.
+        $highestDefinedLevel = max(array_keys($expeditionLevels));
+        $maxFindLevel = min($maxExpeditionLevel + 1, $highestDefinedLevel);
+
         $possibleShipMachineNames = [];
-        for ($level = 1; $level <= $maxExpeditionLevel; $level++) {
+        for ($level = 1; $level <= $maxFindLevel; $level++) {
             $possibleShipMachineNames = array_merge($possibleShipMachineNames, $expeditionLevels[$level]);
         }
 
@@ -366,7 +396,8 @@ class ExpeditionMission extends GameMission
             }
         }
 
-        // If no ships can be found, return empty collection
+        // If no ships can be found at all for this fleet composition, just return empty.
+        // The caller will decide how to message (fallback to Failed).
         if (empty($possibleShips)) {
             return new UnitCollection();
         }
@@ -420,6 +451,20 @@ class ExpeditionMission extends GameMission
             if ($remainingResources < 0) {
                 $remainingResources = 0;
             }
+        }
+
+        if (empty($units->units)) {
+            $cheapest = $units->findCheapestShip($possibleShips);
+
+            if ($cheapest !== null && $cargoCapacityConstrainedAmount >= $cheapest->price->resources->sum()) {
+                $units->addUnit($cheapest, 1);
+            }
+        }
+
+        // If still empty here (no eligible or affordable ships), return empty.
+        // Caller will handle fallback messaging.
+        if (empty($units->units)) {
+            return new UnitCollection();
         }
 
         // Convert units to array with key "unit_<unit_id>" and value as amount.
