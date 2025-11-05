@@ -49,6 +49,7 @@ class ServerSettingsController extends OGameController
             'expedition_gain_merchant_trade' => $settingsService->expeditionGainMerchantTradeEnabled(),
             'expedition_gain_item' => $settingsService->expeditionGainItemEnabled(),
             'expedition_loss_of_fleet' => $settingsService->expeditionLossOfFleetEnabled(),
+            'battle_simulator_enabled' => $settingsService->battleSimulatorEnabled(),
         ]);
     }
 
@@ -94,6 +95,8 @@ class ServerSettingsController extends OGameController
         $settingsService->set('expedition_gain_merchant_trade', request('expedition_gain_merchant_trade', 0));
         $settingsService->set('expedition_gain_item', request('expedition_gain_item', 0));
         $settingsService->set('expedition_loss_of_fleet', request('expedition_loss_of_fleet', 0));
+
+        $settingsService->set('battle_simulator_enabled', request('battle_simulator_enabled', 0));
 
         return redirect()->route('admin.serversettings.index')->with('success', __('Changes saved!'));
     }

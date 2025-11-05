@@ -136,6 +136,16 @@
                                 </div>
                             </div>
                             <div class="fieldwrapper">
+                                <label class="styled textBeefy">@lang('Battle Simulator:')</label>
+                                <div class="thefield">
+                                    <square-checkbox class="square-checkbox">
+                                        <input type="checkbox" id="square-checkBattleSimulator" name="battle_simulator_enabled" value="1" {{ $battle_simulator_enabled ? 'checked' : '' }}>
+                                        <label for="square-checkBattleSimulator"></label>
+                                    </square-checkbox>
+                                </div>
+                                <div class="smallFont">@lang('Allow players to simulate battles before attacking to see potential outcomes.')</div>
+                            </div>
+                            <div class="fieldwrapper">
                                 <label class="styled textBeefy">@lang('Destroyed ships in debris fields:')</label>
                                 <div class="thefield">
                                     <select name="debris_field_from_ships" class="w130" data-value="{{ $debris_field_from_ships }}">

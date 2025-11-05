@@ -423,6 +423,26 @@ Combat simulation save slots +20">
                             <span class="textlabel">@lang('Simulation')</span>
                         </a>
                     </li>
+                    @if($settings->battleSimulatorEnabled())
+                    <li>
+                        <span class="menu_icon">
+                            <a href="{{ route('battlesimulator') }}"
+                               class="tooltipRight js_hideTipOnMobile "
+                               target="_self"
+                               title="Battle Simulator">
+                                <div class="menuImage research {{(Request::is('battlesimulator*') ? 'highlighted' : '') }}">
+                                </div>
+                            </a>
+                        </span>
+                        <a class="menubutton {{(Request::is('battlesimulator*') ? 'selected' : '') }}"
+                           href="{{ route('battlesimulator') }}"
+                           accesskey=""
+                           target="_self"
+                        >
+                            <span class="textlabel">@lang('Battle Simulator')</span>
+                        </a>
+                    </li>
+                    @endif
                     <li>
                         <span class="menu_icon">
                             <a href="{{ route('techtree.ajax', ['tab' => 3, 'object_id' => 1, 'open' => 'all']) }}"

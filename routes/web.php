@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use OGame\Http\Controllers\Admin\DeveloperShortcutsController;
 use OGame\Http\Controllers\Admin\ServerSettingsController as AdminServerSettingsController;
 use OGame\Http\Controllers\AllianceController;
+use OGame\Http\Controllers\BattleSimulatorController;
 use OGame\Http\Controllers\BuddiesController;
 use OGame\Http\Controllers\ChangeNickController;
 use OGame\Http\Controllers\DefenseController;

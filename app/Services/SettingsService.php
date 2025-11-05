@@ -393,4 +393,14 @@ class SettingsService
     {
         return (bool)$this->get('expedition_battle', 1);
     }
+
+    /**
+     * Returns if battle simulator is enabled.
+     *
+     * @return bool
+     */
+    public function battleSimulatorEnabled(): bool
+    {
+        return (bool)$this->get('battle_simulator_enabled', 1);
+    }
 }
