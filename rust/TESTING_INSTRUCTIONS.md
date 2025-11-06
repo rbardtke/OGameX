@@ -1,5 +1,13 @@
 # Testing Instructions for Optimized Battle Engine
 
+## ⚠️ IMPORTANT: Build Requirements
+
+**The Rust code requires internet access to download dependencies on first build.**
+
+- Dependencies: `serde`, `serde_json`, `rand`, `memory-stats`
+- Downloaded from crates.io
+- See `BUILD_INSTRUCTIONS.md` for offline/vendored builds
+
 ## What Was Implemented
 
 A new optimized battle engine implementation that maintains **100% calculation accuracy** while dramatically improving performance for large-scale battles.
@@ -12,6 +20,7 @@ A new optimized battle engine implementation that maintains **100% calculation a
    - `battle_engine_ffi/src/bin/compare_engines.rs` - Comprehensive test suite
    - `OPTIMIZATION_README.md` - Detailed documentation
    - `TESTING_INSTRUCTIONS.md` - This file
+   - `BUILD_INSTRUCTIONS.md` - Build and dependency guide
 
 2. **Modified Files**:
    - `battle_engine_ffi/src/lib.rs` - Now exposes both engines via FFI
@@ -21,6 +30,8 @@ A new optimized battle engine implementation that maintains **100% calculation a
 ## Step-by-Step Testing Procedure
 
 ### Step 1: Build the Code
+
+**Prerequisites**: Internet access for first build. If you get "403" or "Access denied" errors, see `BUILD_INSTRUCTIONS.md`.
 
 ```bash
 cd /home/user/OGameX
@@ -36,10 +47,14 @@ cargo build --release --bin compare_engines
 
 Expected output:
 ```
+   Compiling serde v1.0.xxx
+   Compiling rand v0.8.xxx
    Compiling battle_engine_ffi v0.2.0
    Compiling battle_engine_debug v0.1.0
     Finished release [optimized] target(s) in XX.XXs
 ```
+
+**If you get network errors**: See `BUILD_INSTRUCTIONS.md` for solutions.
 
 If successful, proceed to Step 2.
 
