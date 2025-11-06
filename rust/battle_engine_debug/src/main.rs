@@ -3,6 +3,9 @@ use serde_json::Result;
 use libc;
 
 fn main() -> Result<()> {
+    println!("╔{'═':<78}╗", "");
+    println!("║{:^78}║", "Battle Engine Debug Tool");
+    println!("╚{'═':<78}╝", "");
 
     /*
     Input with defender units without rapidfire.
@@ -58,11 +61,13 @@ fn main() -> Result<()> {
     {"attacker_units":{"204": {"unit_id":204,"amount":100000,"shield_points":10,"attack_power":50,"hull_plating":400,"rapidfire":{"210":5,"212":5}}},"defender_units":{"401": {"unit_id":401,"amount":100000,"shield_points":20,"attack_power":80,"hull_plating":200,"rapidfire":{}}}}
 "#;
 
+    println!("\nRunning comparison of both engines...\n");
+
     // Convert input string to CString for FFI call
     let c_input = std::ffi::CString::new(json_input).unwrap();
 
-    // Call the FFI interface directly
-    let output_ptr = battle_engine_ffi::fight_battle_rounds(c_input.as_ptr());
+    // Call the comparison FFI interface
+    let output_ptr = battle_engine_ffi::fight_battle_rounds_compare(c_input.as_ptr());
 
     // Convert output back to string and free memory
     let output = unsafe {
