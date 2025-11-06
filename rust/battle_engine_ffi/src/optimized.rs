@@ -4,7 +4,6 @@
 //! and only expanded into individual instances when they take unique damage.
 //! This dramatically reduces memory usage and improves performance for large battles.
 
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use rand::Rng;
 use memory_stats::memory_stats;
@@ -117,8 +116,9 @@ impl BattleSide {
         self.total_units == 0
     }
 
-    /// Select a random unit and return mutable reference to it
-    fn select_random_unit(&mut self, rng: &mut impl Rng) -> Option<(i16, &mut BattleUnitInstance, &BattleUnitGroup)> {
+    /// Select a random unit and return mutable reference to it along with its metadata
+    /// Returns: (unit_id, mutable unit reference, base_shield, base_hull)
+    fn select_random_unit(&mut self, rng: &mut impl Rng) -> Option<(i16, &mut BattleUnitInstance, f32, f32)> {
         if self.total_units == 0 {
             return None;
         }
@@ -126,26 +126,24 @@ impl BattleSide {
         let target_idx = rng.gen_range(0..self.total_units);
         let mut cumulative = 0;
 
-        // We need to work around borrow checker limitations here
-        // First, find which group and local index
-        let mut target_info: Option<(i16, usize)> = None;
+        // First pass: find which group and local index, and get metadata
+        let mut target_info: Option<(i16, usize, f32, f32)> = None;
 
         for (unit_id, group) in &self.groups {
             let group_size = group.total_count();
             if target_idx < cumulative + group_size {
                 let local_idx = target_idx - cumulative;
-                target_info = Some((*unit_id, local_idx));
+                target_info = Some((*unit_id, local_idx, group.base_shield, group.base_hull));
                 break;
             }
             cumulative += group_size;
         }
 
-        if let Some((unit_id, local_idx)) = target_info {
+        // Second pass: get mutable reference
+        if let Some((unit_id, local_idx, base_shield, base_hull)) = target_info {
             let group = self.groups.get_mut(&unit_id).unwrap();
             let unit = group.get_or_damage_unit(local_idx);
-            // We need metadata but can't return it with the mutable reference
-            // So we'll return unit_id and the caller can look it up
-            Some((unit_id, unit, unsafe { &*(group as *const BattleUnitGroup) }))
+            Some((unit_id, unit, base_shield, base_hull))
         } else {
             None
         }
@@ -270,7 +268,7 @@ fn process_combat(
         })
         .collect();
 
-    for (attacker_unit_id, count, attack_power, rapidfire) in attacking_units {
+    for (_attacker_unit_id, count, attack_power, rapidfire) in attacking_units {
         for _ in 0..count {
             let mut continue_attacking = true;
             let damage = attack_power;
@@ -279,12 +277,8 @@ fn process_combat(
                 continue_attacking = false;
 
                 // Select a random defender as a target
-                if let Some((target_unit_id, target, _)) = defenders.select_random_unit(&mut rng) {
-                    // Get target metadata
-                    let target_group = defenders.get_group(target_unit_id).unwrap();
-                    let target_base_shield = target_group.base_shield;
-                    let target_base_hull = target_group.base_hull;
-
+                // Now returns: (unit_id, mutable unit, base_shield, base_hull)
+                if let Some((target_unit_id, target, target_base_shield, target_base_hull)) = defenders.select_random_unit(&mut rng) {
                     // Check if the damage is less than 1% of the target's shield points. If so,
                     // attack is negated.
                     if damage < (0.01 * target_base_shield) {
