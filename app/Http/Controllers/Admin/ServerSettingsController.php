@@ -29,6 +29,8 @@ class ServerSettingsController extends OGameController
             'basic_income_energy' => $settingsService->basicIncomeEnergy(),
             'registration_planet_amount' => $settingsService->registrationPlanetAmount(),
             'universe_name' => $settingsService->universeName(),
+            'server_number' => $settingsService->serverNumber(),
+            'universe_identifier' => $settingsService->universeIdentifier(),
             'planet_fields_bonus' => $settingsService->planetFieldsBonus(),
             'dark_matter_bonus' => $settingsService->darkMatterBonus(),
             'alliance_combat_system_on' => $settingsService->allianceCombatSystemOn(),
@@ -71,6 +73,8 @@ class ServerSettingsController extends OGameController
         $settingsService->set('basic_income_energy', request('basic_income_energy'));
 
         $settingsService->set('registration_planet_amount', request('registration_planet_amount'));
+        $settingsService->set('universe_name', request('universe_name'));
+        $settingsService->set('server_number', request('server_number', 1));
 
         $settingsService->set('planet_fields_bonus', request('planet_fields_bonus'));
         $settingsService->set('dark_matter_bonus', request('dark_matter_bonus'));

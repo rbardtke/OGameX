@@ -403,4 +403,27 @@ class SettingsService
     {
         return (bool)$this->get('battle_simulator_enabled', 1);
     }
+
+    /**
+     * Returns the server number.
+     *
+     * @return int
+     */
+    public function serverNumber(): int
+    {
+        return (int)$this->get('server_number', 1);
+    }
+
+    /**
+     * Returns the universe identifier (e.g., "en-256" for English server 256).
+     * Combines locale from config with server number from settings.
+     *
+     * @return string
+     */
+    public function universeIdentifier(): string
+    {
+        $locale = config('app.locale', 'en');
+        $serverNumber = $this->serverNumber();
+        return "{$locale}-{$serverNumber}";
+    }
 }

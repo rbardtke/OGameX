@@ -12,12 +12,19 @@ use OGame\ViewModels\UnitViewModel;
 
 class BattleSimulatorController extends OGameController
 {
-    public function index(): View
+    public function index(Request $request): View
     {
         // Check if battle simulator is enabled
         $settingsService = resolve(SettingsService::class);
         if (!$settingsService->battleSimulatorEnabled()) {
             abort(403, 'Battle Simulator is disabled by the administrator.');
+        }
+
+        // Check if API code was provided
+        $prefillData = null;
+        if ($request->has('api')) {
+            $apiCodeService = resolve(\OGame\Services\EspionageApiCodeService::class);
+            $prefillData = $apiCodeService->parseApiCode($request->get('api'));
         }
 
         // Get all ships for attacker (excluding solar satellites)
@@ -77,6 +84,7 @@ class BattleSimulatorController extends OGameController
             'attackerShips' => $attackerShips,
             'defenderShips' => $defenderShips,
             'defense' => $defense,
+            'prefillData' => $prefillData,
         ]);
     }
 
@@ -91,13 +99,9 @@ class BattleSimulatorController extends OGameController
             ], 403);
         }
 
-        // Parse attacker fleet
+        // Parse input data
         $attackerData = $request->input('attacker', []);
-        $attackerFleet = $this->createUnitCollection($attackerData);
-
-        // Parse defender fleet
         $defenderData = $request->input('defender', []);
-        $defenderFleet = $this->createUnitCollection($defenderData);
 
         // Get tech levels from request
         $attackerWeapon = (int)$request->input('attacker_weapon', 0);
@@ -113,22 +117,64 @@ class BattleSimulatorController extends OGameController
         $defenderCrystal = (int)$request->input('defender_crystal', 0);
         $defenderDeuterium = (int)$request->input('defender_deuterium', 0);
 
-        // Get or create a simulation user (reusable for all simulations)
-        $simulationUser = $this->getSimulationUser();
-
         $playerServiceFactory = resolve(\OGame\Factories\PlayerServiceFactory::class);
-        $playerService = $playerServiceFactory->make($simulationUser->id);
 
-        // Set attacker tech levels
-        $playerService->setResearchLevel('weapon_technology', $attackerWeapon, true);
-        $playerService->setResearchLevel('shielding_technology', $attackerShield, true);
-        $playerService->setResearchLevel('armor_technology', $attackerArmor, true);
-        $playerService->setResearchLevel('hyperspace_technology', $attackerHyperspace, true);
+        // Create ATTACKER simulation user with attacker tech
+        $attackerUser = $this->getSimulationUser('attacker');
+        $attackerPlayerService = $playerServiceFactory->make($attackerUser->id);
 
-        // Get the planet
-        $planetService = $playerService->planets->current();
+        // Set attacker tech levels on attacker user
+        $attackerPlayerService->setResearchLevel('weapon_technology', $attackerWeapon, true);
+        $attackerPlayerService->setResearchLevel('shielding_technology', $attackerShield, true);
+        $attackerPlayerService->setResearchLevel('armor_technology', $attackerArmor, true);
+        $attackerPlayerService->setResearchLevel('hyperspace_technology', $attackerHyperspace, true);
 
-        // Clear existing units and set defender fleet
+        // Get attacker's planet and add attacker units
+        $attackerPlanetService = $attackerPlayerService->planets->current();
+
+        // Clear existing units on attacker planet
+        foreach (ObjectService::getShipObjects() as $ship) {
+            $attackerPlanetService->removeUnit($ship->machine_name, $attackerPlanetService->getObjectAmount($ship->machine_name));
+        }
+
+        // Add attacker units to attacker planet
+        foreach ($attackerData as $unitName => $amount) {
+            if ($amount > 0) {
+                try {
+                    $unit = ObjectService::getUnitObjectByMachineName($unitName);
+                    $attackerPlanetService->addUnit($unit->machine_name, (int)$amount);
+                } catch (\Exception $e) {
+                    continue;
+                }
+            }
+        }
+
+        // Create attacker fleet from attacker planet (with tech bonuses)
+        $attackerFleet = new UnitCollection();
+        foreach ($attackerData as $unitName => $amount) {
+            if ($amount > 0) {
+                try {
+                    $unit = ObjectService::getUnitObjectByMachineName($unitName);
+                    $attackerFleet->addUnit($unit, (int)$amount);
+                } catch (\Exception $e) {
+                    continue;
+                }
+            }
+        }
+
+        // Create DEFENDER simulation user with defender tech
+        $defenderUser = $this->getSimulationUser('defender');
+        $defenderPlayerService = $playerServiceFactory->make($defenderUser->id);
+
+        // Set defender tech levels on defender user
+        $defenderPlayerService->setResearchLevel('weapon_technology', $defenderWeapon, true);
+        $defenderPlayerService->setResearchLevel('shielding_technology', $defenderShield, true);
+        $defenderPlayerService->setResearchLevel('armor_technology', $defenderArmor, true);
+
+        // Get defender's planet
+        $planetService = $defenderPlayerService->planets->current();
+
+        // Clear existing units on defender planet
         foreach (ObjectService::getShipObjects() as $ship) {
             $planetService->removeUnit($ship->machine_name, $planetService->getObjectAmount($ship->machine_name));
         }
@@ -136,9 +182,16 @@ class BattleSimulatorController extends OGameController
             $planetService->removeUnit($defense->machine_name, $planetService->getObjectAmount($defense->machine_name));
         }
 
-        // Add defender units to planet
-        foreach ($defenderFleet->units as $unit) {
-            $planetService->addUnit($unit->unitObject->machine_name, $unit->amount);
+        // Add defender units to defender planet
+        foreach ($defenderData as $unitName => $amount) {
+            if ($amount > 0) {
+                try {
+                    $unit = ObjectService::getUnitObjectByMachineName($unitName);
+                    $planetService->addUnit($unit->machine_name, (int)$amount);
+                } catch (\Exception $e) {
+                    continue;
+                }
+            }
         }
 
         // Clear existing resources and set defender resources for loot calculations
@@ -146,20 +199,11 @@ class BattleSimulatorController extends OGameController
         $planetService->deductResources($existingResources, false);
         $planetService->addResources(new \OGame\Models\Resources($defenderMetal, $defenderCrystal, $defenderDeuterium, 0));
 
-        // Debug: verify resources are set
-        $verifyResources = $planetService->getResources();
-        \Log::info('Defender resources after setting', [
-            'metal' => $verifyResources->metal->get(),
-            'crystal' => $verifyResources->crystal->get(),
-            'deuterium' => $verifyResources->deuterium->get(),
-        ]);
-
         $settingsService = resolve(SettingsService::class);
 
-        // Run battle simulation with attacker tech
-        // Note: For simplicity, we use attacker's tech for the attacker fleet
-        // The defender's tech would need a separate player service to implement properly
-        $battleEngine = new PhpBattleEngine($attackerFleet, $playerService, $planetService, $settingsService);
+        // Run battle simulation
+        // Pass: attacker fleet, attacker PlayerService (for attacker tech), defender PlanetService (for defender tech)
+        $battleEngine = new PhpBattleEngine($attackerFleet, $attackerPlayerService, $planetService, $settingsService);
         $battleResult = $battleEngine->simulateBattle();
 
         // Calculate recyclers needed
@@ -171,8 +215,8 @@ class BattleSimulatorController extends OGameController
         $totalDebris = $battleResult->debris->metal->get() + $battleResult->debris->crystal->get();
         $recyclersNeeded = $totalDebris > 0 ? (int)ceil($totalDebris / $adjustedRecyclerCapacity) : 0;
 
-        // Calculate attacker's remaining cargo capacity
-        $attackerCargoCapacity = $battleResult->attackerUnitsResult->getTotalCargoCapacity($playerService);
+        // Calculate attacker's remaining cargo capacity using attacker's tech
+        $attackerCargoCapacity = $battleResult->attackerUnitsResult->getTotalCargoCapacity($attackerPlayerService);
 
         // Debug: log loot calculation info
         \Log::info('Battle simulation result', [
@@ -276,10 +320,12 @@ class BattleSimulatorController extends OGameController
 
     /**
      * Get or create a dedicated simulation user for battle calculations
+     *
+     * @param string $role Either 'attacker' or 'defender' to create separate users with different tech
      */
-    private function getSimulationUser(): \OGame\Models\User
+    private function getSimulationUser(string $role = 'default'): \OGame\Models\User
     {
-        $email = 'battlesimulator@system.local';
+        $email = 'battlesimulator-' . $role . '@system.local';
 
         // Check if simulation user already exists
         $user = \OGame\Models\User::where('email', $email)->first();

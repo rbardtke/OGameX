@@ -212,6 +212,30 @@ class EspionageReport extends GameMessage
             }
         }
 
+        // Generate API code for battle simulator integration
+        $apiCodeService = resolve(\OGame\Services\EspionageApiCodeService::class);
+        $settingsService = resolve(\OGame\Services\SettingsService::class);
+
+        // Convert ViewModels to simple arrays for API code
+        $shipsArray = [];
+        foreach ($ships as $machine_name => $unit) {
+            $shipsArray[$machine_name] = $unit->amount;
+        }
+
+        $defenseArray = [];
+        foreach ($defense as $machine_name => $unit) {
+            $defenseArray[$machine_name] = $unit->amount;
+        }
+
+        $researchArray = [];
+        foreach ($research as $machine_name => $unit) {
+            $researchArray[$machine_name] = $unit->amount;
+        }
+
+        // Get universe identifier from settings
+        $universeId = $settingsService->universeIdentifier();
+        $apiCode = $apiCodeService->generateApiCode($resources, $shipsArray, $defenseArray, $researchArray, $universeId);
+
         return [
             'subject' => $this->getSubject(),
             'from' => $this->getFrom(),
@@ -222,6 +246,7 @@ class EspionageReport extends GameMessage
             'defense' => $defense,
             'buildings' => $buildings,
             'research' => $research,
+            'apiCode' => $apiCode,
         ];
     }
 }

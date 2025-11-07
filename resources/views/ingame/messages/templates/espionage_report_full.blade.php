@@ -11,8 +11,12 @@
     <div class="msg_actions clearfix">
         <div class="icon_nf_link fleft">
                     <span class="icon_nf icon_apikey tooltipCustom tooltip-width:400 fleft"
-                          title="This data can be entered into a compatible combat simulator:<br/><input value='sr-en-256-265b38b75e565e12526a560bf4f5c83bfce4c5c5' readonly onclick='select()' style='width:360px'></input>"></span>
+                          title="This data can be entered into a compatible combat simulator:<br/><input value='{{ $apiCode }}' readonly onclick='select()' style='width:360px'></input>"></span>
         </div>
+        <a href="{{ route('battlesimulator') }}?api={{ $apiCode }}" class="icon_nf_link fleft" target="_blank">
+                    <span class="icon_nf icon_apikey tooltip js_hideTipOnMobile" title='Open in Battle Simulator'>
+                                                </span>
+        </a>
         <a href="#TODOpage=shareReportOverlay&messageId=1645218"
            data-overlay-title="share message" title='share message'
            class="icon_nf_link fleft overlay tooltip js_hideTipOnMobile"

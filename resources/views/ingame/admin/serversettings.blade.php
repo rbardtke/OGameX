@@ -30,6 +30,13 @@
                                     <input class="textInput w200" type="text" maxlength="20" value="{{ $universe_name }}" size="30" name="universe_name">
                                 </div>
                             </div>
+                            <div class="fieldwrapper">
+                                <label class="styled textBeefy">@lang('Server number:')</label>
+                                <div class="thefield">
+                                    <input type="text" pattern="[0-9]*" class="textInput w50 textCenter textBeefy" value="{{ $server_number }}" size="5" maxlength="5" name="server_number">
+                                </div>
+                                <div class="smallFont">@lang('Used for API codes (e.g., en-256). Current identifier: :identifier', ['identifier' => $universe_identifier])</div>
+                            </div>
                         </div>
 
                         <p class="box_highlight textCenter no_buddies">@lang('You can change the server settings below. Changes will be applied immediately.')</p>

@@ -404,40 +404,21 @@ Combat simulation save slots +20">
                             <span class="textlabel">@lang('Merchant')</span>
                         </a>
                     </li>-->
-
-                    <li>
-                        <span class="menu_icon">
-                            <a href="{{ route('simulation.index') }}"
-                               class="sim tooltipRight js_hideTipOnMobile "
-                               target="_self"
-                               title="Resource Market">
-                                <div class="menuImage simOverview {{(Request::is('simulation') ? 'highlighted' : '') }}">
-                                </div>
-                            </a>
-                        </span>
-                        <a class="menubutton premiumHighligt {{(Request::is('simulation') ? 'selected' : '') }}"
-                           href="{{ route('simulation.index') }}"
-                           accesskey=""
-                           target="_self"
-                        >
-                            <span class="textlabel">@lang('Simulation')</span>
-                        </a>
-                    </li>
                     @if($settings->battleSimulatorEnabled())
                     <li>
                         <span class="menu_icon">
                             <a href="{{ route('battlesimulator') }}"
                                class="tooltipRight js_hideTipOnMobile "
-                               target="_self"
+                               target="_blank"
                                title="Battle Simulator">
-                                <div class="menuImage research {{(Request::is('battlesimulator*') ? 'highlighted' : '') }}">
+                                <div class="menuImage fleet2 {{(Request::is('battlesimulator*') ? 'highlighted' : '') }}">
                                 </div>
                             </a>
                         </span>
                         <a class="menubutton {{(Request::is('battlesimulator*') ? 'selected' : '') }}"
                            href="{{ route('battlesimulator') }}"
                            accesskey=""
-                           target="_self"
+                           target="_blank"
                         >
                             <span class="textlabel">@lang('Battle Simulator')</span>
                         </a>
