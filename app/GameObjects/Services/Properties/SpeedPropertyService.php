@@ -20,28 +20,41 @@ class SpeedPropertyService extends ObjectPropertyService
      * Calculate the total value of the speed property, honoring both:
      * - drive bonus percentage (10/20/30% per level)
      * - base speed override at upgrade thresholds (e.g. SC @ Impulse 5 => 10,000)
+     * - player class bonuses
      */
     public function calculateProperty(PlayerService $player): GameObjectPropertyDetails
     {
         $effectiveBase = $this->determineEffectiveBase($player);
         $bonusPercentage = $this->getBonusPercentage($player);
+        $classBonusPercentage = $this->getClassBonusPercentage($player);
 
         $bonusValue = (($effectiveBase / 100) * $bonusPercentage);
-        $totalValue = $effectiveBase + $bonusValue;
+        $classBonusValue = (($effectiveBase / 100) * $classBonusPercentage);
+        $totalValue = $effectiveBase + $bonusValue + $classBonusValue;
+
+        $bonuses = [
+            [
+                'type' => 'Research bonus',
+                'value' => $bonusValue,
+                'percentage' => $bonusPercentage,
+            ],
+        ];
+
+        if ($classBonusValue > 0) {
+            $bonuses[] = [
+                'type' => 'Class bonus',
+                'value' => $classBonusValue,
+                'percentage' => $classBonusPercentage,
+            ];
+        }
 
         $breakdown = [
             'rawValue' => $effectiveBase,
-            'bonuses' => [
-                [
-                    'type' => 'Research bonus',
-                    'value' => $bonusValue,
-                    'percentage' => $bonusPercentage,
-                ],
-            ],
+            'bonuses' => $bonuses,
             'totalValue' => $totalValue,
         ];
 
-        return new GameObjectPropertyDetails($effectiveBase, $bonusValue, $totalValue, $breakdown);
+        return new GameObjectPropertyDetails($effectiveBase, $bonusValue + $classBonusValue, $totalValue, $breakdown);
     }
 
     /**
@@ -129,5 +142,46 @@ class SpeedPropertyService extends ObjectPropertyService
         }
 
         return $bonus_percentage_per_level * $applicable_technology_level;
+    }
+
+    /**
+     * Calculate class-based speed bonus percentage.
+     * Collector: +100% for cargo ships (small_cargo, large_cargo)
+     * General: +100% for combat ships (except deathstar) and recyclers
+     *
+     * @param PlayerService $player
+     * @return int
+     */
+    protected function getClassBonusPercentage(PlayerService $player): int
+    {
+        $object = $this->parent_object;
+        $machineName = $object->machine_name;
+
+        // Collector class: +100% speed for cargo ships
+        if ($player->isCollector()) {
+            if (in_array($machineName, ['small_cargo', 'large_cargo'])) {
+                return 100;
+            }
+        }
+
+        // General class: +100% speed for combat ships (except deathstar) and recyclers
+        if ($player->isGeneral()) {
+            $combatShips = [
+                'light_fighter',
+                'heavy_fighter',
+                'cruiser',
+                'battle_ship',
+                'battlecruiser',
+                'bomber',
+                'destroyer',
+                'recycler',
+            ];
+
+            if (in_array($machineName, $combatShips)) {
+                return 100;
+            }
+        }
+
+        return 0;
     }
 }

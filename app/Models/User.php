@@ -26,6 +26,8 @@ use Spatie\Permission\Traits\HasRoles;
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property int|null $planet_current
+ * @property string|null $player_class
+ * @property \Illuminate\Support\Carbon|null $class_changed_at
  * @property-read \Illuminate\Notifications\DatabaseNotificationCollection<int, \Illuminate\Notifications\DatabaseNotification> $notifications
  * @property-read int|null $notifications_count
  * @property-read \OGame\Models\UserTech|null $tech
@@ -78,7 +80,7 @@ class User extends Authenticatable
      * @var list<string>
      */
     protected $fillable = [
-        'username', 'email', 'password', 'lang',
+        'username', 'email', 'password', 'lang', 'player_class', 'class_changed_at',
     ];
 
     /**
@@ -91,6 +93,15 @@ class User extends Authenticatable
     ];
 
     /**
+     * The attributes that should be cast.
+     *
+     * @var array<string, string>
+     */
+    protected $casts = [
+        'class_changed_at' => 'datetime',
+    ];
+
+    /**
      * Get the user tech record associated with the user.
      *
      * @return HasOne
@@ -98,5 +109,73 @@ class User extends Authenticatable
     public function tech(): HasOne
     {
         return $this->hasOne(UserTech::class);
+    }
+
+    /**
+     * Check if the player is a Collector class.
+     *
+     * @return bool
+     */
+    public function isCollector(): bool
+    {
+        return $this->player_class === 'collector';
+    }
+
+    /**
+     * Check if the player is a General class.
+     *
+     * @return bool
+     */
+    public function isGeneral(): bool
+    {
+        return $this->player_class === 'general';
+    }
+
+    /**
+     * Check if the player is a Discoverer class.
+     *
+     * @return bool
+     */
+    public function isDiscoverer(): bool
+    {
+        return $this->player_class === 'discoverer';
+    }
+
+    /**
+     * Check if the player can change their class.
+     * Players can change class once per week.
+     *
+     * @return bool
+     */
+    public function canChangeClass(): bool
+    {
+        if ($this->class_changed_at === null) {
+            return true;
+        }
+
+        return $this->class_changed_at->addWeek()->isPast();
+    }
+
+    /**
+     * Change the player's class.
+     *
+     * @param string $newClass
+     * @return bool
+     */
+    public function changeClass(string $newClass): bool
+    {
+        if (!$this->canChangeClass()) {
+            return false;
+        }
+
+        if (!in_array($newClass, ['collector', 'general', 'discoverer'])) {
+            return false;
+        }
+
+        $this->player_class = $newClass;
+        $this->class_changed_at = now();
+        $this->save();
+
+        return true;
     }
 }

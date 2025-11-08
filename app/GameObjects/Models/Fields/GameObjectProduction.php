@@ -116,6 +116,7 @@ class GameObjectProduction
         $this->calculateEngineer($productionIndex);
         $this->calculateGeologist($productionIndex);
         $this->calculateCommandingStaff($productionIndex);
+        $this->calculatePlayerClass($productionIndex);
         $this->calculateItems($productionIndex);
         $this->calculateTotal($productionIndex);
 
@@ -335,6 +336,48 @@ class GameObjectProduction
     }
 
     /**
+     * Calculates Player Class bonus
+     * Collector class provides:
+     * - +25% base mine production
+     * - +10% base energy production
+     *
+     * @param ProductionIndex $productionIndex
+     * @return void
+     */
+    private function calculatePlayerClass(ProductionIndex $productionIndex): void
+    {
+        if (!$this->playerService->isCollector()) {
+            return;
+        }
+
+        // Collector: +25% base mine production
+        if ($productionIndex->mine->metal->get() > 0) {
+            $productionIndex->player_class->metal->set(
+                floor($productionIndex->mine->metal->get() * 0.25)
+            );
+        }
+
+        if ($productionIndex->mine->crystal->get() > 0) {
+            $productionIndex->player_class->crystal->set(
+                floor($productionIndex->mine->crystal->get() * 0.25)
+            );
+        }
+
+        if ($productionIndex->mine->deuterium->get() > 0) {
+            $productionIndex->player_class->deuterium->set(
+                floor($productionIndex->mine->deuterium->get() * 0.25)
+            );
+        }
+
+        // Collector: +10% base energy production
+        if ($productionIndex->mine->energy->get() > 0) {
+            $productionIndex->player_class->energy->set(
+                floor($productionIndex->mine->energy->get() * 0.1)
+            );
+        }
+    }
+
+    /**
      * Calculates active item bonuses
      *
      * @param ProductionIndex $productionIndex
@@ -361,6 +404,7 @@ class GameObjectProduction
         $productionIndex->total->add($productionIndex->engineer);
         $productionIndex->total->add($productionIndex->geologist);
         $productionIndex->total->add($productionIndex->commanding_staff);
+        $productionIndex->total->add($productionIndex->player_class);
         $productionIndex->total->add($productionIndex->items);
     }
 }

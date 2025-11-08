@@ -820,4 +820,34 @@ class PlayerService
             && $this->hasGeologist()
             && $this->hasTechnocrat();
     }
+
+    /**
+     * Check if the player is a Collector class.
+     *
+     * @return bool
+     */
+    public function isCollector(): bool
+    {
+        return $this->user->isCollector();
+    }
+
+    /**
+     * Check if the player is a General class.
+     *
+     * @return bool
+     */
+    public function isGeneral(): bool
+    {
+        return $this->user->isGeneral();
+    }
+
+    /**
+     * Check if the player is a Discoverer class.
+     *
+     * @return bool
+     */
+    public function isDiscoverer(): bool
+    {
+        return $this->user->isDiscoverer();
+    }
 }

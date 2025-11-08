@@ -839,6 +839,11 @@ class PlanetService
 
         $time_seconds = (int)($time_hours * 3600);
 
+        // Apply Discoverer class bonus: -25% research time
+        if ($this->getPlayer()->isDiscoverer()) {
+            $time_seconds = (int)($time_seconds * 0.75);
+        }
+
         // Minimum time is always 1 second for all objects/units.
         if ($time_seconds < 1) {
             $time_seconds = 1;

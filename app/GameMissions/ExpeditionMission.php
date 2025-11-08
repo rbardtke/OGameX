@@ -283,7 +283,7 @@ class ExpeditionMission extends GameMission
         $maxCargoCapacity = $units->getTotalCargoCapacity($player);
 
         // Determine the max resource find.
-        $maxResourceFind = $this->determineMaxResourceFind();
+        $maxResourceFind = $this->determineMaxResourceFind($player);
 
         // Determine the resource type: metal, crystal or deuterium.
         $cargoCapacityConstrainedAmount = 0;
@@ -407,7 +407,7 @@ class ExpeditionMission extends GameMission
         $maxCargoCapacity = $units->getTotalCargoCapacity($player);
 
         // Determine the max resource find.
-        $maxResourceFind = $this->determineMaxResourceFind();
+        $maxResourceFind = $this->determineMaxResourceFind($player);
         $cargoCapacityConstrainedAmount = min($maxCargoCapacity, $maxResourceFind);
 
         // Select 1-6 random ship types from possible ships.
@@ -629,9 +629,10 @@ class ExpeditionMission extends GameMission
      *
      * This method is used by both gainResources and gainShips outcome.
      *
+     * @param \OGame\Services\PlayerService $player
      * @return int
      */
-    private function determineMaxResourceFind(): int
+    private function determineMaxResourceFind(\OGame\Services\PlayerService $player): int
     {
         // Max resources found is according to these params:
         // Number 1 player highscore "general" points determines the max resources found:
@@ -677,10 +678,11 @@ class ExpeditionMission extends GameMission
         // Pick a random amount between min and max.
         $resourceAmount = random_int($min, $max);
 
-        // TODO: when actual player classes such as discoverer, collector etc. are implemented, make this modifier apply only if class is "discoverer".
-        // For now we apply it anyway so the economy speed is applied to the resource find.
-        $economySpeed = $this->settings->economySpeed();
-        $resourceAmount = $resourceAmount * ($economySpeed * 1.5);
+        // Apply Discoverer class bonus: (1.5 * economy speed) multiplier to resources
+        if ($player->isDiscoverer()) {
+            $economySpeed = $this->settings->economySpeed();
+            $resourceAmount = $resourceAmount * ($economySpeed * 1.5);
+        }
 
         // TODO: when pathfinder unit is added to the game and included in the fleet, the max find should be doubled.
 

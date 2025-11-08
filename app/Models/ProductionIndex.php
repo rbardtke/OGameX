@@ -68,6 +68,14 @@ class ProductionIndex
      */
     public Resources $items;
 
+    /**
+     * Player class bonus amount
+     * - Collector: +25% base mine production, +10% base energy production
+     *
+     * @var Resources
+     */
+    public Resources $player_class;
+
     public function __construct()
     {
         $this->basic = new Resources();
@@ -79,6 +87,7 @@ class ProductionIndex
         $this->geologist = new Resources();
         $this->commanding_staff = new Resources();
         $this->items = new Resources();
+        $this->player_class = new Resources();
     }
 
     /**
@@ -98,5 +107,6 @@ class ProductionIndex
         $this->geologist->add($productionIndex->geologist);
         $this->commanding_staff->add($productionIndex->commanding_staff);
         $this->items->add($productionIndex->items);
+        $this->player_class->add($productionIndex->player_class);
     }
 }
