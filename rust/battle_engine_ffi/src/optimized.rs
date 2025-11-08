@@ -127,13 +127,18 @@ impl BattleSide {
         let mut cumulative = 0;
 
         // First pass: find which group and local index, and get metadata
+        // IMPORTANT: Sort by unit_id to ensure deterministic order (HashMap iteration is random)
         let mut target_info: Option<(i16, usize, f32, f32)> = None;
 
-        for (unit_id, group) in &self.groups {
+        let mut unit_ids: Vec<i16> = self.groups.keys().copied().collect();
+        unit_ids.sort();
+
+        for unit_id in unit_ids {
+            let group = self.groups.get(&unit_id).unwrap();
             let group_size = group.total_count();
             if target_idx < cumulative + group_size {
                 let local_idx = target_idx - cumulative;
-                target_info = Some((*unit_id, local_idx, group.base_shield, group.base_hull));
+                target_info = Some((unit_id, local_idx, group.base_shield, group.base_hull));
                 break;
             }
             cumulative += group_size;
@@ -257,11 +262,13 @@ fn process_combat(
 
     // We need to iterate over all attackers
     // Build a list of all units to attack with (unit_id, count)
-    let attacking_units: Vec<(i16, usize, f32, HashMap<i16, u16>)> = attackers.groups.iter()
+    // IMPORTANT: Sort by unit_id to ensure deterministic order (HashMap iteration is random)
+    let mut attacking_units: Vec<(i16, usize, f32, HashMap<i16, u16>)> = attackers.groups.iter()
         .map(|(unit_id, group)| {
             (*unit_id, group.total_count(), group.base_attack, group.rapidfire.clone())
         })
         .collect();
+    attacking_units.sort_by_key(|&(unit_id, _, _, _)| unit_id);
 
     for (_attacker_unit_id, count, attack_power, rapidfire) in attacking_units {
         for _ in 0..count {
