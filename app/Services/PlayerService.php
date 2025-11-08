@@ -375,7 +375,6 @@ class PlayerService
 
     /**
      * Gets the level of a research technology for this player.
-     * General class: +2 levels to combat research (weapon, shielding, armor)
      *
      * @param string $machine_name
      * @return int
@@ -386,15 +385,30 @@ class PlayerService
 
         $research_level = $this->user_tech->{$research->machine_name} ?? 0;
 
-        // General class: +2 combat research levels
+        return $research_level;
+    }
+
+    /**
+     * Gets the effective combat research level for this player.
+     * This includes class bonuses that affect combat effectiveness but not research costs.
+     * General class: +2 levels to weapon, shielding, and armor technologies.
+     *
+     * @param string $machine_name
+     * @return int
+     */
+    public function getEffectiveCombatResearchLevel(string $machine_name): int
+    {
+        $base_level = $this->getResearchLevel($machine_name);
+
+        // General class: +2 combat research levels (for combat only, not costs)
         if ($this->isGeneral()) {
             $combatTechnologies = ['weapon_technology', 'shielding_technology', 'armor_technology'];
             if (in_array($machine_name, $combatTechnologies)) {
-                $research_level += 2;
+                return $base_level + 2;
             }
         }
 
-        return $research_level;
+        return $base_level;
     }
 
     /**

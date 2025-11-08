@@ -93,14 +93,15 @@ abstract class BattleEngine
         $result = new BattleResult();
 
         // Initialize the battle result object with the attacker and defender information.
+        // Use effective combat research levels which include class bonuses (e.g., General +2)
         $result->lootPercentage = $this->lootPercentage;
-        $result->attackerWeaponLevel = $this->attackerPlayer->getResearchLevel('weapon_technology');
-        $result->attackerShieldLevel = $this->attackerPlayer->getResearchLevel('shielding_technology');
-        $result->attackerArmorLevel = $this->attackerPlayer->getResearchLevel('armor_technology');
+        $result->attackerWeaponLevel = $this->attackerPlayer->getEffectiveCombatResearchLevel('weapon_technology');
+        $result->attackerShieldLevel = $this->attackerPlayer->getEffectiveCombatResearchLevel('shielding_technology');
+        $result->attackerArmorLevel = $this->attackerPlayer->getEffectiveCombatResearchLevel('armor_technology');
 
-        $result->defenderWeaponLevel = $this->defenderPlanet->getPlayer()->getResearchLevel('weapon_technology');
-        $result->defenderShieldLevel = $this->defenderPlanet->getPlayer()->getResearchLevel('shielding_technology');
-        $result->defenderArmorLevel = $this->defenderPlanet->getPlayer()->getResearchLevel('armor_technology');
+        $result->defenderWeaponLevel = $this->defenderPlanet->getPlayer()->getEffectiveCombatResearchLevel('weapon_technology');
+        $result->defenderShieldLevel = $this->defenderPlanet->getPlayer()->getEffectiveCombatResearchLevel('shielding_technology');
+        $result->defenderArmorLevel = $this->defenderPlanet->getPlayer()->getEffectiveCombatResearchLevel('armor_technology');
 
         $result->attackerUnitsStart = clone $this->attackerFleet;
         $result->attackerUnitsResult = clone $this->attackerFleet;

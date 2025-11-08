@@ -19,7 +19,8 @@ class ShieldPropertyService extends ObjectPropertyService
      */
     protected function getBonusPercentage(PlayerService $player): int
     {
-        $shielding_technology_level = $player->getResearchLevel('shielding_technology');
+        // Use effective combat research level which includes class bonuses (e.g., General +2)
+        $shielding_technology_level = $player->getEffectiveCombatResearchLevel('shielding_technology');
         // Every level technology gives 10% bonus.
         return $shielding_technology_level * 10;
     }

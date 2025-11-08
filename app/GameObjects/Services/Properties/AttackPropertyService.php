@@ -19,7 +19,8 @@ class AttackPropertyService extends ObjectPropertyService
      */
     protected function getBonusPercentage(PlayerService $player): int
     {
-        $weapons_technology_level = $player->getResearchLevel('weapon_technology');
+        // Use effective combat research level which includes class bonuses (e.g., General +2)
+        $weapons_technology_level = $player->getEffectiveCombatResearchLevel('weapon_technology');
         // Every level technology gives 10% bonus.
         return $weapons_technology_level * 10;
     }

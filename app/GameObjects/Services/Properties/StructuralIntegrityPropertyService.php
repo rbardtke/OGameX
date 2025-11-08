@@ -21,7 +21,8 @@ class StructuralIntegrityPropertyService extends ObjectPropertyService
      */
     protected function getBonusPercentage(PlayerService $player): int
     {
-        $armor_technology_level = $player->getResearchLevel('armor_technology');
+        // Use effective combat research level which includes class bonuses (e.g., General +2)
+        $armor_technology_level = $player->getEffectiveCombatResearchLevel('armor_technology');
         // Every level of armor technology gives 10% bonus.
         return $armor_technology_level * 10;
     }
