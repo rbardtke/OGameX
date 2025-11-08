@@ -183,11 +183,6 @@ impl BattleSide {
             })
             .collect()
     }
-
-    /// Get unit group by ID
-    fn get_group(&self, unit_id: i16) -> Option<&BattleUnitGroup> {
-        self.groups.get(&unit_id)
-    }
 }
 
 /// Process the battle rounds and return the battle output.

@@ -26,9 +26,9 @@ struct ComparisonResult {
 
 impl ComparisonResult {
     fn print_summary(&self) {
-        println!("\n{'═':<80}", "");
+        println!("\n{}", "=".repeat(80));
         println!("Scenario: {}", self.scenario_name);
-        println!("{'─':<80}", "");
+        println!("{}", "-".repeat(80));
         println!("Total units: {}", self.total_units);
         println!("\nPerformance:");
         println!("  Original:  {:>10.2} ms  (Memory: {} KB)", self.original_duration_ms, self.original_peak_memory_kb);
@@ -62,10 +62,10 @@ impl ComparisonResult {
 }
 
 fn main() {
-    println!("╔{'═':<78}╗", "");
+    println!("╔{}╗", "═".repeat(78));
     println!("║{:^78}║", "Battle Engine Comparison Suite");
     println!("║{:^78}║", "Original vs Optimized Implementation");
-    println!("╚{'═':<78}╝", "");
+    println!("╚{}╝", "═".repeat(78));
 
     let scenarios = vec![
         create_small_battle_scenario(),
@@ -93,7 +93,7 @@ fn main() {
 
 fn compare_engines(scenario_name: &str, input: BattleInput) -> ComparisonResult {
     let total_units: usize = input.attacker_units.values().map(|u| u.amount as usize).sum::<usize>()
-        + input.defender_units.values().map(|u| u.amount as usize).sum();
+        + input.defender_units.values().map(|u| u.amount as usize).sum::<usize>();
 
     // Run original engine
     let start = Instant::now();
@@ -215,9 +215,9 @@ fn compare_unit_counts(
 
 fn print_overall_summary(results: &[ComparisonResult]) {
     println!("\n\n");
-    println!("╔{'═':<78}╗", "");
+    println!("╔{}╗", "═".repeat(78));
     println!("║{:^78}║", "Overall Summary");
-    println!("╚{'═':<78}╝", "");
+    println!("╚{}╝", "═".repeat(78));
 
     let all_match = results.iter().all(|r| r.results_match);
     let total_tests = results.len();
@@ -232,7 +232,7 @@ fn print_overall_summary(results: &[ComparisonResult]) {
 
     println!("\nPerformance Summary:");
     println!("{:<30} {:>12} {:>12} {:>10}", "Scenario", "Original", "Optimized", "Speedup");
-    println!("{:─<70}", "");
+    println!("{}", "-".repeat(70));
 
     for result in results {
         println!(
@@ -245,7 +245,7 @@ fn print_overall_summary(results: &[ComparisonResult]) {
     }
 
     let avg_speedup: f64 = results.iter().map(|r| r.speedup_factor).sum::<f64>() / results.len() as f64;
-    println!("{:─<70}", "");
+    println!("{}", "-".repeat(70));
     println!("{:<30} {:>32} {:>9.2}x", "Average Speedup", "", avg_speedup);
 
     // Find best and worst cases
