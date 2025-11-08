@@ -375,6 +375,7 @@ class PlayerService
 
     /**
      * Gets the level of a research technology for this player.
+     * General class: +2 levels to combat research (weapon, shielding, armor)
      *
      * @param string $machine_name
      * @return int
@@ -384,11 +385,16 @@ class PlayerService
         $research = ObjectService::getResearchObjectByMachineName($machine_name);
 
         $research_level = $this->user_tech->{$research->machine_name} ?? 0;
-        if ($research_level) {
-            return $research_level;
-        } else {
-            return 0;
+
+        // General class: +2 combat research levels
+        if ($this->isGeneral()) {
+            $combatTechnologies = ['weapon_technology', 'shielding_technology', 'armor_technology'];
+            if (in_array($machine_name, $combatTechnologies)) {
+                $research_level += 2;
+            }
         }
+
+        return $research_level;
     }
 
     /**

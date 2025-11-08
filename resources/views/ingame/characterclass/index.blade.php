@@ -84,9 +84,9 @@
                                     <li class="characterclass bonus">+25% cargo bay for Recyclers and Pathfinders</li>
                                     <li class="characterclass bonus">+2 fleet slots</li>
                                     <li class="characterclass bonus">+5 additional Moon Fields</li>
+                                    <li class="characterclass bonus">+2 combat research levels</li>
                                     <li class="characterclass bonus coming-soon" title="Not yet implemented">A small chance to immediately destroy a Deathstar with a light fighter</li>
                                     <li class="characterclass bonus coming-soon" title="Not yet implemented">Wreckage at attack</li>
-                                    <li class="characterclass bonus coming-soon" title="Not yet implemented">+2 combat research levels</li>
                                     <li class="characterclass bonus coming-soon" title="Not yet implemented">Detailed fleet speed settings</li>
                                 </ul>
                             </div>
