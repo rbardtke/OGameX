@@ -393,11 +393,11 @@ class PlanetServiceFactory
         $planet->time_last_update = (int)Carbon::now()->timestamp;
 
         if ($planet_type === PlanetType::Moon) {
-            $this->setupMoonProperties($planet);
+            $this->setupMoonProperties($planet, $player);
         } else {
             $is_first_planet = $player->planets->planetCount() == 0;
 
-            $this->setupPlanetProperties($planet, $is_first_planet);
+            $this->setupPlanetProperties($planet, $player, $is_first_planet);
         }
 
         $planet->save();
@@ -408,13 +408,16 @@ class PlanetServiceFactory
     /**
      * Sets up moon-specific properties.
      * @param Planet $planet
+     * @param PlayerService $player
      */
-    private function setupMoonProperties(Planet $planet): void
+    private function setupMoonProperties(Planet $planet, PlayerService $player): void
     {
         // TODO: moon diameter should be made dependent on the moon chance percentage
         // that resulted from battle that created this moon.
         $planet->diameter = rand(7500, 8888);
-        $planet->field_max = 1;
+
+        // Base moon field is 1, General class adds +5 fields per moon
+        $planet->field_max = 1 + ($player->isGeneral() ? 5 : 0);
 
         // TODO: temperature range should be dependent on the moon position.
         $planet->temp_max = rand(0, 100);
@@ -429,13 +432,21 @@ class PlanetServiceFactory
     /**
      * Sets up planet-specific properties.
      * @param Planet $planet
+     * @param PlayerService $player
+     * @param bool $is_first_planet
      */
-    private function setupPlanetProperties(Planet $planet, bool $is_first_planet = false): void
+    private function setupPlanetProperties(Planet $planet, PlayerService $player, bool $is_first_planet = false): void
     {
         $planet_data = $this->planetData($planet->planet, $is_first_planet);
 
         // Random field count between the min and max values and add the Server planet fields bonus setting.
-        $planet->field_max = rand($planet_data['fields'][0], $planet_data['fields'][1]) + $this->settings->planetFieldsBonus();
+        $base_fields = rand($planet_data['fields'][0], $planet_data['fields'][1]) + $this->settings->planetFieldsBonus();
+
+        // Discoverer class: +10% planet size (effectively +21% fields based on OGame wiki)
+        // Using 10% as specified in requirements
+        $class_bonus = $player->isDiscoverer() ? (int)($base_fields * 0.10) : 0;
+
+        $planet->field_max = $base_fields + $class_bonus;
         $planet->diameter = (int) (36.14 * $planet->field_max + 5697.23);
 
         // Random temperature between the min and max values is assigned to temp_max, then temp_min is calculated as temp_max - 40.

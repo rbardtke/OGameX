@@ -462,6 +462,7 @@ class PlayerService
      * Get the (maximum) amount of fleet slots that the player has available.
      *
      * This is calculated based on the player's research level and optional bonuses that may apply.
+     * General class: +2 fleet slots
      *
      * @return int
      */
@@ -471,7 +472,10 @@ class PlayerService
         $object = ObjectService::getResearchObjectByMachineName('computer_technology');
         $fleet_slots_from_research = $object->performCalculation(CalculationType::MAX_FLEET_SLOTS, $this->getResearchLevel('computer_technology'));
 
-        return $fleet_slots_from_research;
+        // General class: +2 fleet slots
+        $class_bonus = $this->isGeneral() ? 2 : 0;
+
+        return $fleet_slots_from_research + $class_bonus;
     }
 
     /**
@@ -498,6 +502,7 @@ class PlayerService
      * Get the (maximum) amount of expedition slots that the player has available.
      *
      * This is calculated based on the player's research level and optional bonuses that may apply.
+     * Discoverer class: +2 expedition slots
      *
      * @return int
      */
@@ -507,7 +512,10 @@ class PlayerService
         $object = ObjectService::getResearchObjectByMachineName('astrophysics');
         $expedition_slots_from_research = $object->performCalculation(CalculationType::MAX_EXPEDITION_SLOTS, $this->getResearchLevel('astrophysics'));
 
-        return $expedition_slots_from_research;
+        // Discoverer class: +2 expedition slots
+        $class_bonus = $this->isDiscoverer() ? 2 : 0;
+
+        return $expedition_slots_from_research + $class_bonus;
     }
 
     /**

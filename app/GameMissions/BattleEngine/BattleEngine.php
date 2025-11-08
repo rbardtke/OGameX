@@ -34,7 +34,6 @@ abstract class BattleEngine
 
     /**
      * @var int The percentage of loot that is gained from a battle.
-     * TODO: make this configurable. For inactive players loot percentage could be up to 75% for example.
      */
     private int $lootPercentage = 50;
 
@@ -56,10 +55,32 @@ abstract class BattleEngine
         $this->attackerFleet = $attackerFleet;
         $this->attackerPlayer = $attackerPlayer;
         $this->defenderPlanet = $defenderPlanet;
+        $this->settings = $settings;
+
+        // Calculate loot percentage based on defender inactive status and attacker class
+        $this->lootPercentage = $this->calculateLootPercentage();
 
         $this->lootService = new LootService($this->attackerFleet, $this->attackerPlayer, $this->defenderPlanet, $this->lootPercentage);
+    }
 
-        $this->settings = $settings;
+    /**
+     * Calculate the loot percentage based on defender activity and attacker class.
+     * Default: 50% loot from active players
+     * Discoverer class: 75% loot from inactive players
+     *
+     * @return int
+     */
+    private function calculateLootPercentage(): int
+    {
+        // Base loot percentage
+        $lootPercentage = 50;
+
+        // Check if defender is inactive and attacker is Discoverer class
+        if ($this->defenderPlanet->getPlayer()->isInactive() && $this->attackerPlayer->isDiscoverer()) {
+            $lootPercentage = 75;
+        }
+
+        return $lootPercentage;
     }
 
     /**
