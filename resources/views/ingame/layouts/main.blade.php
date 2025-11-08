@@ -238,11 +238,11 @@
                 </a>
             </div>
             <div id="characterclass" class="fleft">
-                <a href="#TODO_=ingame&amp;component=characterclassselection"
+                <a href="{{ route('characterclass.index') }}"
                    class="tooltipHTML js_hideTipOnMobile ipiHintable"
-                   title="Your class: Collector|+25% mine production<br>+10% energy production<br>+100% speed for Transporters<br>+25% cargo bay for Transporters<br>+50% Crawler bonus<br>+10% more usable Crawlers with Geologist<br>Overload the Crawlers up to 150%<br>+10% discount on acceleration (building)"
+                   title="@lang('Character Class')|@lang('Select or change your character class to gain special bonuses')"
                    data-ipi-hint="ipiCharacterclassSettings">
-                    <div class="sprite characterclass medium miner"></div>
+                    <div class="sprite characterclass medium {{ auth()->user()->player_class === 'collector' ? 'miner' : (auth()->user()->player_class === 'general' ? 'warrior' : (auth()->user()->player_class === 'discoverer' ? 'explorer' : 'miner')) }}"></div>
                 </a>
             </div>
             <div id="officers" class="  fright">

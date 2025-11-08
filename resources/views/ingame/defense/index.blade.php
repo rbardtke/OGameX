@@ -60,8 +60,8 @@
             var loca = {"LOCA_ALL_NOTICE":"Reference","LOCA_ALL_NETWORK_ATTENTION":"Caution","locaDemolishStructureQuestion":"Really downgrade TECHNOLOGY_NAME by one level?","LOCA_ALL_YES":"yes","LOCA_ALL_NO":"No","LOCA_LIFEFORM_BONUS_CAP_REACHED_WARNING":"One or more associated bonuses is already maxed out. Do you want to continue construction anyway?"};
 
             var technologyDetailsEndpoint = "{{ route('defense.ajax') }}";
-            var selectCharacterClassEndpoint = "#TODO_page=ingame&component=characterclassselection&characterClassId=CHARACTERCLASSID&action=selectClass&ajax=1&asJson=1";
-            var deselectCharacterClassEndpoint = "#TODO_page=ingame&component=characterclassselection&characterClassId=CHARACTERCLASSID&action=deselectClass&ajax=1&asJson=1";
+            var selectCharacterClassEndpoint = "{{ route('characterclass.select') }}";
+            var deselectCharacterClassEndpoint = "{{ route('characterclass.deselect') }}";
 
             var technologyDetails = new TechnologyDetails({
                 technologyDetailsEndpoint: technologyDetailsEndpoint,

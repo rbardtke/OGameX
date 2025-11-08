@@ -6,6 +6,7 @@ use OGame\Http\Controllers\Admin\ServerSettingsController as AdminServerSettings
 use OGame\Http\Controllers\AllianceController;
 use OGame\Http\Controllers\BuddiesController;
 use OGame\Http\Controllers\ChangeNickController;
+use OGame\Http\Controllers\CharacterClassController;
 use OGame\Http\Controllers\DefenseController;
 use OGame\Http\Controllers\FacilitiesController;
 use OGame\Http\Controllers\FleetController;
@@ -121,6 +122,10 @@ Route::middleware(['auth', 'globalgame', 'locale'])->group(function () {
 
     Route::get('/options', [OptionsController::class, 'index'])->name('options.index');
     Route::post('/options', [OptionsController::class, 'save'])->name('options.save');
+
+    Route::get('/characterclass', [CharacterClassController::class, 'index'])->name('characterclass.index');
+    Route::post('/ajax/characterclass/select', [CharacterClassController::class, 'selectClass'])->name('characterclass.select');
+    Route::post('/ajax/characterclass/deselect', [CharacterClassController::class, 'deselectClass'])->name('characterclass.deselect');
 
     Route::get('/highscore', [HighscoreController::class, 'index'])->name('highscore.index');
     Route::post('/ajax/highscore', [HighscoreController::class, 'ajax'])->name('highscore.ajax');
