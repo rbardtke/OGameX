@@ -32,6 +32,7 @@ class DeveloperShortcutsController extends OGameController
             'buildings' => [...ObjectService::getBuildingObjects(), ...ObjectService::getStationObjects()],
             'research' => ObjectService::getResearchObjects(),
             'currentPlanet' => $playerService->planets->current(),
+            'currentClass' => $playerService->getUser()->player_class,
         ]);
     }
 
@@ -90,6 +91,22 @@ class DeveloperShortcutsController extends OGameController
             $playerService->planets->current()->deductResources($playerService->planets->current()->getResources());
 
             return redirect()->back()->with('success', 'All resources have been set to 0');
+        } elseif ($request->has('set_class')) {
+            // Handle class change (bypass weekly restriction for developers)
+            $class = $request->input('player_class');
+            if (in_array($class, ['collector', 'general', 'discoverer', 'none'])) {
+                $user = $playerService->getUser();
+                if ($class === 'none') {
+                    $user->player_class = null;
+                    $user->class_changed_at = null;
+                } else {
+                    $user->player_class = $class;
+                    $user->class_changed_at = now();
+                }
+                $user->save();
+
+                return redirect()->back()->with('success', 'Character class has been changed to: ' . ($class === 'none' ? 'None' : ucfirst($class)));
+            }
         }
 
         // Handle unit submission

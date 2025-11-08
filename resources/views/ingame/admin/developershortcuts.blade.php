@@ -89,7 +89,60 @@
                                         <input type="submit" class="btn_blue" name="reset_resources" value="@lang('Set all resources to 0')">
                                     </div>
                                 </div>
+
+                                <p class="box_highlight textCenter no_buddies">
+                                    @lang('Character Class')
+                                    @if($currentClass)
+                                        <span style="color: #6f9fc8;">(Current: {{ ucfirst($currentClass) }})</span>
+                                    @else
+                                        <span style="color: #999;">(None selected)</span>
+                                    @endif
+                                </p>
+                                <div class="group bborder" style="display: block;">
+                                    <div class="fieldwrapper">
+                                        <div class="smallFont" style="margin-bottom: 10px;">
+                                            @lang('Change character class instantly (bypasses weekly cooldown for testing)')
+                                        </div>
+                                        <button type="submit" name="set_class" value="collector" class="btn_blue {{ $currentClass === 'collector' ? 'disabled' : '' }}"
+                                                {{ $currentClass === 'collector' ? 'disabled' : '' }}>
+                                            <div class="sprite characterclass small miner" style="display: inline-block; vertical-align: middle; margin-right: 5px;"></div>
+                                            @lang('Collector')
+                                        </button>
+                                        <input type="hidden" name="player_class" value="collector">
+
+                                        <button type="submit" name="set_class" value="general" class="btn_blue {{ $currentClass === 'general' ? 'disabled' : '' }}"
+                                                {{ $currentClass === 'general' ? 'disabled' : '' }}>
+                                            <div class="sprite characterclass small warrior" style="display: inline-block; vertical-align: middle; margin-right: 5px;"></div>
+                                            @lang('General')
+                                        </button>
+
+                                        <button type="submit" name="set_class" value="discoverer" class="btn_blue {{ $currentClass === 'discoverer' ? 'disabled' : '' }}"
+                                                {{ $currentClass === 'discoverer' ? 'disabled' : '' }}>
+                                            <div class="sprite characterclass small explorer" style="display: inline-block; vertical-align: middle; margin-right: 5px;"></div>
+                                            @lang('Discoverer')
+                                        </button>
+
+                                        <button type="submit" name="set_class" value="none" class="btn_blue {{ is_null($currentClass) ? 'disabled' : '' }}"
+                                                {{ is_null($currentClass) ? 'disabled' : '' }}>
+                                            @lang('Remove Class')
+                                        </button>
+                                    </div>
+                                </div>
                             </form>
+
+                            <script>
+                                // Handle character class button clicks
+                                document.querySelectorAll('button[name="set_class"]').forEach(button => {
+                                    button.addEventListener('click', function(e) {
+                                        // Set the hidden input value to match the button's value
+                                        const form = this.closest('form');
+                                        const hiddenInput = form.querySelector('input[name="player_class"]');
+                                        if (hiddenInput) {
+                                            hiddenInput.value = this.value;
+                                        }
+                                    });
+                                });
+                            </script>
 
                             <form action="{{ route('admin.developershortcuts.update-resources') }}" name="form" method="post">
                                 {{ csrf_field() }}
