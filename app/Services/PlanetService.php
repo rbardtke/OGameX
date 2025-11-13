@@ -649,7 +649,18 @@ class PlanetService
                 // Do not count solar satellite as ship.
                 continue;
             }
-            $totalCount += $this->planet->{$object->machine_name};
+
+            // Skip crawler as it cannot be sent on missions
+            if ($object->machine_name === 'crawler') {
+                continue;
+            }
+
+            try {
+                $totalCount += $this->planet->{$object->machine_name};
+            } catch (\Exception $e) {
+                // Column doesn't exist yet (migrations not run)
+                continue;
+            }
         }
 
         return $totalCount;
@@ -665,8 +676,13 @@ class PlanetService
         $units = new UnitCollection();
         $objects = ObjectService::getShipObjects();
         foreach ($objects as $object) {
-            if ($this->planet->{$object->machine_name} > 0) {
-                $units->addUnit($object, $this->planet->{$object->machine_name});
+            try {
+                if ($this->planet->{$object->machine_name} > 0) {
+                    $units->addUnit($object, $this->planet->{$object->machine_name});
+                }
+            } catch (\Exception $e) {
+                // Column doesn't exist yet (migrations not run)
+                continue;
             }
         }
 
@@ -761,7 +777,13 @@ class PlanetService
     public function getObjectLevel(string $machine_name): int
     {
         $object = ObjectService::getObjectByMachineName($machine_name);
-        $level = $this->planet->{$object->machine_name};
+
+        try {
+            $level = $this->planet->{$object->machine_name};
+        } catch (\Exception $e) {
+            // Column doesn't exist yet (migrations not run)
+            return 0;
+        }
 
         // Required for unittests to work because db factories do not always set initial values.
         if (empty($level)) {
@@ -1974,8 +1996,13 @@ class PlanetService
     {
         $object = ObjectService::getUnitObjectByMachineName($machine_name);
 
-        if (!empty($this->planet->{$object->machine_name})) {
-            return $this->planet->{$object->machine_name};
+        try {
+            if (!empty($this->planet->{$object->machine_name})) {
+                return $this->planet->{$object->machine_name};
+            }
+        } catch (\Exception $e) {
+            // Column doesn't exist yet (migrations not run)
+            return 0;
         }
 
         return 0;
