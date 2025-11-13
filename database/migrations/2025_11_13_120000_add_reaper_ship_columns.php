@@ -10,23 +10,15 @@ return new class () extends Migration {
      */
     public function up(): void
     {
-        // Add reaper column to planets table
+        // Add reaper and crawler columns to planets table
         Schema::table('planets', function (Blueprint $table) {
             $table->integer('reaper')->default(0)->after('deathstar');
-        });
-
-        // Add reaper column to fleet_missions table
-        Schema::table('fleet_missions', function (Blueprint $table) {
-            $table->integer('reaper')->default(0)->after('deathstar');
-        });
-
-        // Add crawler column to planets table (after solar_satellite)
-        Schema::table('planets', function (Blueprint $table) {
             $table->integer('crawler')->default(0)->after('solar_satellite');
         });
 
-        // Add crawler column to fleet_missions table (after espionage_probe)
+        // Add reaper and crawler columns to fleet_missions table
         Schema::table('fleet_missions', function (Blueprint $table) {
+            $table->integer('reaper')->default(0)->after('deathstar');
             $table->integer('crawler')->default(0)->after('espionage_probe');
         });
     }
