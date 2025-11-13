@@ -1,17 +1,24 @@
--- SQL script to add Reaper and Crawler columns
--- Run this script on your OGameX database if migrations won't run
+-- SQL script to add Reaper and Crawler columns to OGameX database
+-- Run this script on your MySQL database (via phpMyAdmin, command line, etc.)
 
--- Add reaper column to planets table
-ALTER TABLE planets ADD COLUMN reaper INT DEFAULT 0 AFTER deathstar;
+-- Step 1: Make sure you're using the correct database
+-- USE your_database_name;  -- Uncomment and change to your database name
 
--- Add reaper column to fleet_missions table
-ALTER TABLE fleet_missions ADD COLUMN reaper INT DEFAULT 0 AFTER deathstar;
+-- Step 2: Add columns to planets table
+ALTER TABLE planets ADD COLUMN IF NOT EXISTS reaper INT NOT NULL DEFAULT 0 AFTER deathstar;
+ALTER TABLE planets ADD COLUMN IF NOT EXISTS crawler INT NOT NULL DEFAULT 0 AFTER solar_satellite;
 
--- Add crawler column to planets table
-ALTER TABLE planets ADD COLUMN crawler INT DEFAULT 0 AFTER solar_satellite;
+-- Step 3: Add columns to fleet_missions table
+ALTER TABLE fleet_missions ADD COLUMN IF NOT EXISTS reaper INT NOT NULL DEFAULT 0 AFTER deathstar;
+ALTER TABLE fleet_missions ADD COLUMN IF NOT EXISTS crawler INT NOT NULL DEFAULT 0 AFTER espionage_probe;
 
--- Add crawler column to fleet_missions table (though crawlers can't be sent on missions)
-ALTER TABLE fleet_missions ADD COLUMN crawler INT DEFAULT 0 AFTER espionage_probe;
+-- Step 4: Verify columns were added (optional check)
+-- SELECT 'Planets table structure:' AS info;
+-- SHOW COLUMNS FROM planets LIKE '%reaper%';
+-- SHOW COLUMNS FROM planets LIKE '%crawler%';
+--
+-- SELECT 'Fleet missions table structure:' AS info;
+-- SHOW COLUMNS FROM fleet_missions LIKE '%reaper%';
+-- SHOW COLUMNS FROM fleet_missions LIKE '%crawler%';
 
--- Verify the columns were added
-SELECT 'Columns added successfully!' AS status;
+-- Done! The crawler and reaper columns are now ready to use.
