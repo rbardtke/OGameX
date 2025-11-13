@@ -389,7 +389,12 @@ class GameObjectProduction
     private function calculateCrawler(ProductionIndex $productionIndex): void
     {
         // Get number of crawlers on this planet
-        $crawlerCount = $this->planetService->getObjectAmount('crawler');
+        try {
+            $crawlerCount = $this->planetService->getObjectAmount('crawler');
+        } catch (\Exception $e) {
+            // Crawler column doesn't exist yet (migrations not run)
+            return;
+        }
 
         if ($crawlerCount <= 0) {
             return;

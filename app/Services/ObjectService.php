@@ -445,24 +445,29 @@ class ObjectService
 
         // Check crawler limit based on mine levels
         if ($machine_name === 'crawler') {
-            $metal_mine_level = $planet->getObjectLevel('metal_mine');
-            $crystal_mine_level = $planet->getObjectLevel('crystal_mine');
-            $deuterium_mine_level = $planet->getObjectLevel('deuterium_synthesizer');
-            $total_mine_levels = $metal_mine_level + $crystal_mine_level + $deuterium_mine_level;
+            try {
+                $metal_mine_level = $planet->getObjectLevel('metal_mine');
+                $crystal_mine_level = $planet->getObjectLevel('crystal_mine');
+                $deuterium_mine_level = $planet->getObjectLevel('deuterium_synthesizer');
+                $total_mine_levels = $metal_mine_level + $crystal_mine_level + $deuterium_mine_level;
 
-            // Base limit: (sum of mine levels) × 8
-            $max_crawlers = $total_mine_levels * 8;
+                // Base limit: (sum of mine levels) × 8
+                $max_crawlers = $total_mine_levels * 8;
 
-            // Collector gets additional 10%
-            if ($planet->getPlayer()->isCollector()) {
-                $max_crawlers = (int)($max_crawlers * 1.1);
-            }
+                // Collector gets additional 10%
+                if ($planet->getPlayer()->isCollector()) {
+                    $max_crawlers = (int)($max_crawlers * 1.1);
+                }
 
-            $current_crawlers = $planet->getObjectAmount('crawler');
-            $remaining_crawler_slots = $max_crawlers - $current_crawlers;
+                $current_crawlers = $planet->getObjectAmount('crawler');
+                $remaining_crawler_slots = $max_crawlers - $current_crawlers;
 
-            if ($remaining_crawler_slots <= 0) {
-                return 0;
+                if ($remaining_crawler_slots <= 0) {
+                    return 0;
+                }
+            } catch (\Exception $e) {
+                // Crawler column doesn't exist yet (migrations not run)
+                // Allow building without limit check
             }
         }
 

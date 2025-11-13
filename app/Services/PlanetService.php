@@ -1608,10 +1608,14 @@ class PlanetService
         }
 
         // Add crawler energy consumption (50 energy per crawler)
-        $crawler_count = $this->getObjectAmount('crawler');
-        if ($crawler_count > 0) {
-            $crawler_energy_consumption = $crawler_count * 50;
-            $energy_consumption_total += $crawler_energy_consumption;
+        try {
+            $crawler_count = $this->getObjectAmount('crawler');
+            if ($crawler_count > 0) {
+                $crawler_energy_consumption = $crawler_count * 50;
+                $energy_consumption_total += $crawler_energy_consumption;
+            }
+        } catch (\Exception $e) {
+            // Crawler column doesn't exist yet (migrations not run)
         }
 
         $this->planet->energy_used = (int) $energy_consumption_total;
