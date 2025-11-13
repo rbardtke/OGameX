@@ -76,6 +76,15 @@ class ProductionIndex
      */
     public Resources $player_class;
 
+    /**
+     * Crawler bonus amount
+     * - Each crawler provides +0.02% production (0.03% for Collector)
+     * - Maximum 50% of base production
+     *
+     * @var Resources
+     */
+    public Resources $crawler;
+
     public function __construct()
     {
         $this->basic = new Resources();
@@ -88,6 +97,7 @@ class ProductionIndex
         $this->commanding_staff = new Resources();
         $this->items = new Resources();
         $this->player_class = new Resources();
+        $this->crawler = new Resources();
     }
 
     /**
@@ -108,5 +118,6 @@ class ProductionIndex
         $this->commanding_staff->add($productionIndex->commanding_staff);
         $this->items->add($productionIndex->items);
         $this->player_class->add($productionIndex->player_class);
+        $this->crawler->add($productionIndex->crawler);
     }
 }

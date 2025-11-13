@@ -117,6 +117,7 @@ class GameObjectProduction
         $this->calculateGeologist($productionIndex);
         $this->calculateCommandingStaff($productionIndex);
         $this->calculatePlayerClass($productionIndex);
+        $this->calculateCrawler($productionIndex);
         $this->calculateItems($productionIndex);
         $this->calculateTotal($productionIndex);
 
@@ -378,6 +379,54 @@ class GameObjectProduction
     }
 
     /**
+     * Calculates Crawler bonus
+     * Each crawler provides +0.02% production (0.03% for Collector)
+     * Maximum 50% of base production
+     *
+     * @param ProductionIndex $productionIndex
+     * @return void
+     */
+    private function calculateCrawler(ProductionIndex $productionIndex): void
+    {
+        // Get number of crawlers on this planet
+        $crawlerCount = $this->planetService->getObjectAmount('crawler');
+
+        if ($crawlerCount <= 0) {
+            return;
+        }
+
+        // Efficiency per crawler: 0.02% (0.03% for Collector)
+        $efficiencyPerCrawler = $this->playerService->isCollector() ? 0.0003 : 0.0002;
+
+        // Calculate total bonus percentage from crawlers
+        $crawlerBonus = $crawlerCount * $efficiencyPerCrawler;
+
+        // Cap at 50% of base production
+        if ($crawlerBonus > 0.5) {
+            $crawlerBonus = 0.5;
+        }
+
+        // Apply bonus to metal, crystal, and deuterium based on base mine production
+        if ($productionIndex->mine->metal->get() > 0) {
+            $productionIndex->crawler->metal->set(
+                floor($productionIndex->mine->metal->get() * $crawlerBonus)
+            );
+        }
+
+        if ($productionIndex->mine->crystal->get() > 0) {
+            $productionIndex->crawler->crystal->set(
+                floor($productionIndex->mine->crystal->get() * $crawlerBonus)
+            );
+        }
+
+        if ($productionIndex->mine->deuterium->get() > 0) {
+            $productionIndex->crawler->deuterium->set(
+                floor($productionIndex->mine->deuterium->get() * $crawlerBonus)
+            );
+        }
+    }
+
+    /**
      * Calculates active item bonuses
      *
      * @param ProductionIndex $productionIndex
@@ -405,6 +454,7 @@ class GameObjectProduction
         $productionIndex->total->add($productionIndex->geologist);
         $productionIndex->total->add($productionIndex->commanding_staff);
         $productionIndex->total->add($productionIndex->player_class);
+        $productionIndex->total->add($productionIndex->crawler);
         $productionIndex->total->add($productionIndex->items);
     }
 }

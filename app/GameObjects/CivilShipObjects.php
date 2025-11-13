@@ -184,6 +184,32 @@ As soon as Impulse Drive research has reached level 17, Recyclers are refitted w
         $solarSatellite->assets->imgMicro = 'solar_satellite_micro.jpg';
         $buildingObjectsNew[] = $solarSatellite;
 
+        // --- Crawler ---
+        $crawler = new ShipObject();
+        $crawler->id = 217;
+        $crawler->title = 'Crawler';
+        $crawler->machine_name = 'crawler';
+        $crawler->class_name = 'crawler';
+        $crawler->description = 'The Crawler is a mobile mining assistant that boosts resource production on planets.';
+        $crawler->description_long = 'Crawlers are small robotic vehicles that crawl across the planetary surface, assisting in the extraction of resources from mines. Each Crawler increases the production of metal, crystal, and deuterium by 0.02% of base production. Collectors receive a 50% efficiency bonus, making each Crawler increase production by 0.03% instead. Each Crawler consumes 50 energy and cannot be sent on fleet missions. The maximum number of Crawlers per planet is determined by the sum of all mine levels multiplied by 8 (with an additional 10% for Collectors). The production bonus from Crawlers is capped at 50% of base production.';
+        $crawler->requirements = [
+            new GameObjectRequirement('shipyard', 5),
+            new GameObjectRequirement('combustion_drive', 4),
+            new GameObjectRequirement('armor_technology', 4),
+            new GameObjectRequirement('laser_technology', 4),
+        ];
+        $crawler->price = new GameObjectPrice(2000, 2000, 1000, 0);
+        $crawler->rapidfire = [
+            new GameObjectRapidfire('espionage_probe', 5),
+            new GameObjectRapidfire('solar_satellite', 5),
+        ];
+        $crawler->properties = new GameObjectProperties($crawler, 4000, 1, 1, 0, 0, 0);
+
+        $crawler->assets = new GameObjectAssets();
+        $crawler->assets->imgSmall = 'crawler_small.jpg';
+        $crawler->assets->imgMicro = 'crawler_micro.jpg';
+        $buildingObjectsNew[] = $crawler;
+
         return $buildingObjectsNew;
     }
 }

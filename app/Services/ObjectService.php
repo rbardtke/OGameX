@@ -443,6 +443,29 @@ class ObjectService
             return $planet->getObjectAmount($machine_name) ? 0 : 1;
         }
 
+        // Check crawler limit based on mine levels
+        if ($machine_name === 'crawler') {
+            $metal_mine_level = $planet->getObjectLevel('metal_mine');
+            $crystal_mine_level = $planet->getObjectLevel('crystal_mine');
+            $deuterium_mine_level = $planet->getObjectLevel('deuterium_synthesizer');
+            $total_mine_levels = $metal_mine_level + $crystal_mine_level + $deuterium_mine_level;
+
+            // Base limit: (sum of mine levels) × 8
+            $max_crawlers = $total_mine_levels * 8;
+
+            // Collector gets additional 10%
+            if ($planet->getPlayer()->isCollector()) {
+                $max_crawlers = (int)($max_crawlers * 1.1);
+            }
+
+            $current_crawlers = $planet->getObjectAmount('crawler');
+            $remaining_crawler_slots = $max_crawlers - $current_crawlers;
+
+            if ($remaining_crawler_slots <= 0) {
+                return 0;
+            }
+        }
+
         // Check missile silo capacity for IPM and ABM
         if ($machine_name === 'interplanetary_missile' || $machine_name === 'anti_ballistic_missile') {
             $silo_level = $planet->getObjectLevel('missile_silo');
@@ -492,6 +515,11 @@ class ObjectService
         // Add silo capacity limit to the array for missiles
         if (($machine_name === 'interplanetary_missile' || $machine_name === 'anti_ballistic_missile') && isset($max_from_silo)) {
             $max_build_amount[] = $max_from_silo;
+        }
+
+        // Add crawler limit to the array
+        if ($machine_name === 'crawler' && isset($remaining_crawler_slots)) {
+            $max_build_amount[] = $remaining_crawler_slots;
         }
 
         // Get the lowest divided value which is the maximum amount of times this ship

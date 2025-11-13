@@ -1607,6 +1607,13 @@ class PlanetService
             }
         }
 
+        // Add crawler energy consumption (50 energy per crawler)
+        $crawler_count = $this->getObjectAmount('crawler');
+        if ($crawler_count > 0) {
+            $crawler_energy_consumption = $crawler_count * 50;
+            $energy_consumption_total += $crawler_energy_consumption;
+        }
+
         $this->planet->energy_used = (int) $energy_consumption_total;
         $this->planet->energy_max  = (int) $energy_production_total;
 
