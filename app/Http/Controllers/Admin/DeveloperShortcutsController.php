@@ -27,12 +27,30 @@ class DeveloperShortcutsController extends OGameController
         // Get all unit objects
         $units = ObjectService::getUnitObjects();
 
+        // Check if reaper/crawler columns exist
+        $crawlerColumnExists = false;
+        $reaperColumnExists = false;
+        try {
+            \DB::select('SELECT crawler FROM planets LIMIT 1');
+            $crawlerColumnExists = true;
+        } catch (\Exception $e) {
+            // Column doesn't exist
+        }
+        try {
+            \DB::select('SELECT reaper FROM planets LIMIT 1');
+            $reaperColumnExists = true;
+        } catch (\Exception $e) {
+            // Column doesn't exist
+        }
+
         return view('ingame.admin.developershortcuts')->with([
             'units' => $units,
             'buildings' => [...ObjectService::getBuildingObjects(), ...ObjectService::getStationObjects()],
             'research' => ObjectService::getResearchObjects(),
             'currentPlanet' => $playerService->planets->current(),
             'currentClass' => $playerService->getUser()->player_class,
+            'crawlerColumnExists' => $crawlerColumnExists,
+            'reaperColumnExists' => $reaperColumnExists,
         ]);
     }
 

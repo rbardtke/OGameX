@@ -132,11 +132,33 @@
                                 <p class="box_highlight textCenter no_buddies">@lang('Database Management')</p>
                                 <div class="group bborder" style="display: block;">
                                     <div class="fieldwrapper">
-                                        <div class="smallFont" style="margin-bottom: 10px; color: #ff9900;">
-                                            ⚠️ @lang('Run pending database migrations (adds new columns for Reaper and Crawler ships)')
+                                        <div class="smallFont" style="margin-bottom: 10px;">
+                                            <strong>Database Columns Status:</strong><br>
+                                            Crawler column:
+                                            @if($crawlerColumnExists)
+                                                <span style="color: #6f9fc8;">✓ Exists</span>
+                                            @else
+                                                <span style="color: #ff9900;">✗ Missing</span>
+                                            @endif
+                                            <br>
+                                            Reaper column:
+                                            @if($reaperColumnExists)
+                                                <span style="color: #6f9fc8;">✓ Exists</span>
+                                            @else
+                                                <span style="color: #ff9900;">✗ Missing</span>
+                                            @endif
                                         </div>
-                                        <input type="submit" class="btn_blue" name="run_migrations" value="@lang('Run Database Migrations')"
-                                               onclick="return confirm('@lang('This will run all pending database migrations. Continue?')')">
+                                        @if(!$crawlerColumnExists || !$reaperColumnExists)
+                                            <div class="smallFont" style="margin-bottom: 10px; color: #ff9900;">
+                                                ⚠️ @lang('Run pending database migrations (adds new columns for Reaper and Crawler ships)')
+                                            </div>
+                                            <input type="submit" class="btn_blue" name="run_migrations" value="@lang('Run Database Migrations')"
+                                                   onclick="return confirm('@lang('This will run all pending database migrations. Continue?')')">
+                                        @else
+                                            <div class="smallFont" style="color: #6f9fc8;">
+                                                ✓ All columns exist - migrations complete!
+                                            </div>
+                                        @endif
                                     </div>
                                 </div>
                             </form>
