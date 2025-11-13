@@ -219,6 +219,37 @@ class MilitaryShipObjects
         $destroyer->assets->imgMicro = 'destroyer_small.jpg';
         $buildingObjectsNew[] = $destroyer;
 
+        // --- Reaper ---
+        $reaper = new ShipObject();
+        $reaper->id = 218;
+        $reaper->title = 'Reaper';
+        $reaper->machine_name = 'reaper';
+        $reaper->class_name = 'reaper';
+        $reaper->description = 'The Reaper combines firepower, strong shields, speed and cargo capacity with the ability to harvest debris fields directly after battle.';
+        $reaper->description_long = 'The Reaper is the newest warship in the game, combining fire power, strong shields, speed and capacity along with the unique ability to mine a portion of the created debris field directly after a battle. This powerful ship can plunder debris fields immediately after combat, making it invaluable for resource recovery in hostile territory. The Reaper is particularly effective against Battleships and can hold its own against most other combat vessels. Only General class players can construct this advanced warship.';
+        $reaper->requirements = [
+            new GameObjectRequirement('shipyard', 10),
+            new GameObjectRequirement('hyperspace_drive', 7),
+            new GameObjectRequirement('hyperspace_technology', 6),
+            new GameObjectRequirement('shielding_technology', 6),
+        ];
+        $reaper->price = new GameObjectPrice(85000, 55000, 20000, 0);
+        $reaper->rapidfire = [
+            new GameObjectRapidfire('espionage_probe', 5),
+            new GameObjectRapidfire('solar_satellite', 5),
+            new GameObjectRapidfire('battle_ship', 7),
+            new GameObjectRapidfire('deathstar', 10),
+            new GameObjectRapidfire('ion_cannon', 2),
+            new GameObjectRapidfire('crawler', 5),
+            new GameObjectRapidfire('bomber', 4),
+            new GameObjectRapidfire('destroyer', 3),
+        ];
+        $reaper->properties = new GameObjectProperties($reaper, 140000, 700, 2800, 7000, 10000, 1100);
+        $reaper->assets = new GameObjectAssets();
+        $reaper->assets->imgSmall = 'reaper_small.jpg';
+        $reaper->assets->imgMicro = 'reaper_small.jpg';
+        $buildingObjectsNew[] = $reaper;
+
         // --- Deathstar ---
         $deathstar = new ShipObject();
         $deathstar->id = 214;
@@ -256,6 +287,7 @@ class MilitaryShipObjects
             new GameObjectRapidfire('ion_cannon', 100),
             new GameObjectRapidfire('gauss_cannon', 50),
             new GameObjectRapidfire('battlecruiser', 15),
+            new GameObjectRapidfire('reaper', 10),
         ];
         $deathstar->properties = new GameObjectProperties($deathstar, 9000000, 50000, 200000, 100, 1000000, 1);
         $deathstar->assets = new GameObjectAssets();

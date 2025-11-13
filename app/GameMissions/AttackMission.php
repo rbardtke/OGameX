@@ -93,6 +93,25 @@ class AttackMission extends GameMission
         // Save defenders planet
         $defenderPlanet->save();
 
+        // Check if attacker has surviving Reaper ships for debris collection
+        $reaperCollectedDebris = new Resources(0, 0, 0, 0);
+        $reaperCount = $battleResult->attackerUnitsResult->getAmountByMachineName('reaper');
+        if ($reaperCount > 0) {
+            // Reaper collects 25% of debris field directly after battle
+            $collectionPercentage = 0.25;
+            $reaperCollectedDebris->metal->set((int)($battleResult->debris->metal->get() * $collectionPercentage));
+            $reaperCollectedDebris->crystal->set((int)($battleResult->debris->crystal->get() * $collectionPercentage));
+            $reaperCollectedDebris->deuterium->set((int)($battleResult->debris->deuterium->get() * $collectionPercentage));
+
+            // Reduce debris field by the collected amount
+            $battleResult->debris->metal->set($battleResult->debris->metal->get() - $reaperCollectedDebris->metal->get());
+            $battleResult->debris->crystal->set($battleResult->debris->crystal->get() - $reaperCollectedDebris->crystal->get());
+            $battleResult->debris->deuterium->set($battleResult->debris->deuterium->get() - $reaperCollectedDebris->deuterium->get());
+
+            // Add collected debris to loot that will be returned
+            $battleResult->loot->add($reaperCollectedDebris);
+        }
+
         // Create or append debris field.
         // TODO: we could change this debris field append logic to do everything in a single query to
         // prevent race conditions. Check this later when looking into reducing chance of race conditions occurring.

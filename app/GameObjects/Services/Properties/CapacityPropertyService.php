@@ -69,7 +69,7 @@ class CapacityPropertyService extends ObjectPropertyService
     /**
      * Calculate class-based cargo capacity bonus percentage.
      * Collector: +25% for cargo ships (small_cargo, large_cargo)
-     * General: +25% for recyclers and pathfinders
+     * General: +25% for recyclers, pathfinders, and reapers
      *
      * @param PlayerService $player
      * @return int
@@ -86,9 +86,9 @@ class CapacityPropertyService extends ObjectPropertyService
             }
         }
 
-        // General class: additional cargo on recyclers and pathfinders
+        // General class: additional cargo on recyclers, pathfinders, and reapers
         if ($player->isGeneral()) {
-            if (in_array($machineName, ['recycler', 'pathfinder'])) {
+            if (in_array($machineName, ['recycler', 'pathfinder', 'reaper'])) {
                 return 25;
             }
         }

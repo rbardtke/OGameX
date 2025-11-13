@@ -164,7 +164,7 @@ class SpeedPropertyService extends ObjectPropertyService
             }
         }
 
-        // General class: +100% speed for combat ships (except deathstar) and recyclers
+        // General class: +100% speed for combat ships (except deathstar), recyclers, and reapers
         if ($player->isGeneral()) {
             $combatShips = [
                 'light_fighter',
@@ -175,6 +175,7 @@ class SpeedPropertyService extends ObjectPropertyService
                 'bomber',
                 'destroyer',
                 'recycler',
+                'reaper',
             ];
 
             if (in_array($machineName, $combatShips)) {

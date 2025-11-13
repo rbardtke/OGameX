@@ -340,6 +340,12 @@ class ObjectService
     public static function objectRequirementsMet(string $machine_name, PlanetService $planet): bool
     {
         $object = self::getObjectByMachineName($machine_name);
+
+        // Special class requirement for Reaper: only General class can build it
+        if ($machine_name === 'reaper' && !$planet->getPlayer()->isGeneral()) {
+            return false;
+        }
+
         return count(self::filterCompletedRequirements($object->requirements, $planet)) === 0;
     }
 
