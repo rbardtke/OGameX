@@ -128,6 +128,17 @@
                                         </button>
                                     </div>
                                 </div>
+
+                                <p class="box_highlight textCenter no_buddies">@lang('Database Management')</p>
+                                <div class="group bborder" style="display: block;">
+                                    <div class="fieldwrapper">
+                                        <div class="smallFont" style="margin-bottom: 10px; color: #ff9900;">
+                                            ⚠️ @lang('Run pending database migrations (adds new columns for Reaper and Crawler ships)')
+                                        </div>
+                                        <input type="submit" class="btn_blue" name="run_migrations" value="@lang('Run Database Migrations')"
+                                               onclick="return confirm('@lang('This will run all pending database migrations. Continue?')')">
+                                    </div>
+                                </div>
                             </form>
 
                             <script>

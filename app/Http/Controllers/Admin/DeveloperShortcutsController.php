@@ -107,6 +107,16 @@ class DeveloperShortcutsController extends OGameController
 
                 return redirect()->back()->with('success', 'Character class has been changed to: ' . ($class === 'none' ? 'None' : ucfirst($class)));
             }
+        } elseif ($request->has('run_migrations')) {
+            // Handle running database migrations
+            try {
+                \Artisan::call('migrate', ['--force' => true]);
+                $output = \Artisan::output();
+
+                return redirect()->back()->with('success', 'Migrations executed successfully: ' . $output);
+            } catch (\Exception $e) {
+                return redirect()->back()->with('error', 'Migration failed: ' . $e->getMessage());
+            }
         }
 
         // Handle unit submission
