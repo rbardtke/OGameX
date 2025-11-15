@@ -128,10 +128,17 @@ class DeveloperShortcutsController extends OGameController
         } elseif ($request->has('run_migrations')) {
             // Handle running database migrations
             try {
-                \Artisan::call('migrate', ['--force' => true]);
-                $output = \Artisan::output();
+                // First check which migrations are pending
+                \Artisan::call('migrate:status');
+                $statusOutput = \Artisan::output();
 
-                return redirect()->back()->with('success', 'Migrations executed successfully: ' . $output);
+                // Run migrations
+                \Artisan::call('migrate', ['--force' => true]);
+                $migrateOutput = \Artisan::output();
+
+                $fullOutput = "Migration Status:\n" . $statusOutput . "\n\nMigration Run:\n" . $migrateOutput;
+
+                return redirect()->back()->with('success', 'Migrations executed: ' . nl2br(e($fullOutput)));
             } catch (\Exception $e) {
                 return redirect()->back()->with('error', 'Migration failed: ' . $e->getMessage());
             }
