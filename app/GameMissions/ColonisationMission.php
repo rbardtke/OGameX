@@ -2,6 +2,7 @@
 
 namespace OGame\GameMissions;
 
+use OGame\Enums\FleetSpeedType;
 use OGame\GameMessages\ColonyEstablished;
 use OGame\GameMessages\ColonyEstablishFailAstrophysics;
 use OGame\GameMissions\Abstracts\GameMission;
@@ -19,6 +20,7 @@ class ColonisationMission extends GameMission
     protected static string $name = 'Colonisation';
     protected static int $typeId = 7;
     protected static bool $hasReturnMission = false;
+    protected static FleetSpeedType $fleetSpeedType = FleetSpeedType::peaceful;
 
     /**
      * @inheritdoc
@@ -39,6 +41,12 @@ class ColonisationMission extends GameMission
         // Only possible for slots 1-15.
         if ($targetCoordinate->position < 1 || $targetCoordinate->position > 15) {
             return new MissionPossibleStatus(false);
+        }
+
+        // Check if the player's Astrophysics level is high enough for this position.
+        $player = $planet->getPlayer();
+        if (!$player->canColonizePosition($targetCoordinate->position)) {
+            return new MissionPossibleStatus(false, __('Your knowledge of astrophysics is not sufficient to colonize this planet position.'));
         }
 
         // If no colony ships are present in the fleet, the mission is not possible.

@@ -4,6 +4,7 @@ namespace OGame\GameMissions\Abstracts;
 
 use Exception;
 use Illuminate\Support\Carbon;
+use OGame\Enums\FleetSpeedType;
 use OGame\Factories\PlanetServiceFactory;
 use OGame\Factories\PlayerServiceFactory;
 use OGame\GameMessages\ReturnOfFleet;
@@ -37,6 +38,11 @@ abstract class GameMission
      * @var bool Whether this mission has a return mission by default.
      */
     protected static bool $hasReturnMission;
+
+    /**
+     * @var FleetSpeedType The fleet speed type for this mission.
+     */
+    protected static FleetSpeedType $fleetSpeedType;
 
     protected FleetMissionService $fleetMissionService;
 
@@ -77,6 +83,16 @@ abstract class GameMission
     public static function getTypeId(): int
     {
         return static::$typeId;
+    }
+
+    /**
+     * Get the fleet speed type for this mission.
+     *
+     * @return FleetSpeedType
+     */
+    public static function getFleetSpeedType(): FleetSpeedType
+    {
+        return static::$fleetSpeedType;
     }
 
     /**
@@ -184,12 +200,25 @@ abstract class GameMission
 
         $this->startMissionSanityChecks($planet, $targetCoordinate, $targetType, $units, $deduct_resources);
 
+        $totalCargoCapacity = $units->getTotalCargoCapacity($planet->getPlayer());
+
+        // Check if the player has sufficient deuterium storage capacity for the fleet.
+        if ($totalCargoCapacity < $consumption) {
+            throw new Exception(__('You don\'t have sufficient storage capacity!'));
+        }
+
+        // Check if the fleet will exceed the fleet cargo capacity.
+        $total_resources = $resources->sum();
+        if ($total_resources > $totalCargoCapacity) {
+            throw new Exception('Resources exceed fleet cargo capacity.');
+        }
+
         // Time this fleet mission will depart (now).
         $time_start = (int)Carbon::now()->timestamp;
 
         // Time fleet mission will arrive.
         // TODO: refactor calculate to gamemission base class?
-        $time_end = $time_start + $this->fleetMissionService->calculateFleetMissionDuration($planet, $targetCoordinate, $units, $speedPercent);
+        $time_end = $time_start + $this->fleetMissionService->calculateFleetMissionDuration($planet, $targetCoordinate, $units, $this, $speedPercent);
 
         $mission = new FleetMission();
 
@@ -301,9 +330,10 @@ abstract class GameMission
         $mission->type_from = $parentMission->type_to;
         $mission->type_to = $parentMission->type_from;
 
-        // If planet_id_to is not set, it can mean that the target planet was colonized or the mission was canceled.
-        // In this case, we keep planet_id_from as null.
-        if ($mission->type_to === PlanetType::Planet->value) {
+        // Set planet_id_from if the return mission is coming from a planet or moon.
+        // If planet_id_to is not set on the parent mission, it can mean that the target planet was colonized or the mission was canceled.
+        // In this case, we attempt to load the planet from the target coordinates.
+        if ($mission->type_from === PlanetType::Planet->value || $mission->type_from === PlanetType::Moon->value) {
             if ($parentMission->planet_id_to === null) {
                 // Attempt to load it from the target coordinates.
                 $targetPlanet = $this->planetServiceFactory->makeForCoordinate(new Coordinate($parentMission->galaxy_to, $parentMission->system_to, $parentMission->position_to));
