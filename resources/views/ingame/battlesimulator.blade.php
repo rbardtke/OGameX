@@ -311,6 +311,35 @@
                 <button class="clear-btn" onclick="clearAttacker()">Clear</button>
             </div>
             <div class="panel-content">
+                <!-- Planet Selection -->
+                <div class="section">
+                    <div class="section-title">Load from Planet</div>
+                    <select id="planet-selector" style="width: 100%; padding: 4px; background: #0d1014; border: 1px solid #395f8b; color: #6f9fc8; font-size: 11px; margin-bottom: 5px;">
+                        <option value="">-- Select a planet --</option>
+                        @foreach ($userPlanets ?? [] as $planet)
+                            <option value="{{ $planet['id'] }}">{{ $planet['name'] }} [{{ $planet['coordinates'] }}]</option>
+                        @endforeach
+                    </select>
+                    <small style="color: #6f9fc8; opacity: 0.7; font-size: 9px;">Loads coordinates, fleet, and tech from selected planet</small>
+                </div>
+
+                <!-- Coordinates -->
+                <div class="section">
+                    <div class="section-title">Coordinates</div>
+                    <div class="input-row">
+                        <label>Galaxy:</label>
+                        <input type="number" id="attacker_galaxy" min="1" max="9" value="1">
+                    </div>
+                    <div class="input-row">
+                        <label>System:</label>
+                        <input type="number" id="attacker_system" min="1" max="499" value="1">
+                    </div>
+                    <div class="input-row">
+                        <label>Position:</label>
+                        <input type="number" id="attacker_position" min="1" max="15" value="1">
+                    </div>
+                </div>
+
                 <!-- Technology -->
                 <div class="section">
                     <div class="section-title">Combat</div>
@@ -328,14 +357,22 @@
                     </div>
                 </div>
 
-                <!-- Drives (optional for future) -->
+                <!-- Drives -->
                 <div class="section">
                     <div class="section-title">Drives</div>
+                    <div class="input-row">
+                        <label>Combustion:</label>
+                        <input type="number" id="attacker_combustion" min="0" max="50" value="0">
+                    </div>
+                    <div class="input-row">
+                        <label>Impulse:</label>
+                        <input type="number" id="attacker_impulse" min="0" max="50" value="0">
+                    </div>
                     <div class="input-row">
                         <label>Hyperspace:</label>
                         <input type="number" id="attacker_hyperspace" min="0" max="50" value="0">
                     </div>
-                    <small style="color: #6f9fc8; opacity: 0.7; font-size: 9px;">+5% cargo per level</small>
+                    <small style="color: #6f9fc8; opacity: 0.7; font-size: 9px;">+5% cargo per level (hyperspace)</small>
                 </div>
 
                 <!-- Ships -->
@@ -361,7 +398,24 @@
                 <button class="clear-btn" onclick="clearDefender()">Clear</button>
             </div>
             <div class="panel-content">
-                
+
+                <!-- Coordinates -->
+                <div class="section">
+                    <div class="section-title">Coordinates</div>
+                    <div class="input-row">
+                        <label>Galaxy:</label>
+                        <input type="number" id="defender_galaxy" min="1" max="9" value="1">
+                    </div>
+                    <div class="input-row">
+                        <label>System:</label>
+                        <input type="number" id="defender_system" min="1" max="499" value="1">
+                    </div>
+                    <div class="input-row">
+                        <label>Position:</label>
+                        <input type="number" id="defender_position" min="1" max="15" value="1">
+                    </div>
+                </div>
+
                 <!-- Combat Technology -->
                 <div class="section">
                     <div class="section-title">Combat</div>
@@ -445,10 +499,76 @@
 document.addEventListener('DOMContentLoaded', function() {
     const simulateBtn = document.getElementById('simulate-btn');
     const resultsPanel = document.getElementById('results-panel');
+    const planetSelector = document.getElementById('planet-selector');
+
+    // Handle planet selection
+    planetSelector.addEventListener('change', function() {
+        const planetId = this.value;
+
+        if (!planetId) {
+            return;
+        }
+
+        // Fetch planet data via AJAX
+        fetch('/battlesimulator/planet-data', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
+            body: JSON.stringify({ planet_id: planetId })
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                const data = result.data;
+
+                // Set coordinates
+                document.getElementById('attacker_galaxy').value = data.coordinates.galaxy;
+                document.getElementById('attacker_system').value = data.coordinates.system;
+                document.getElementById('attacker_position').value = data.coordinates.position;
+
+                // Set technologies
+                document.getElementById('attacker_weapon').value = data.technologies.weapon_technology;
+                document.getElementById('attacker_shield').value = data.technologies.shielding_technology;
+                document.getElementById('attacker_armor').value = data.technologies.armor_technology;
+                document.getElementById('attacker_combustion').value = data.technologies.combustion_drive;
+                document.getElementById('attacker_impulse').value = data.technologies.impulse_drive;
+                document.getElementById('attacker_hyperspace').value = data.technologies.hyperspace_drive;
+
+                // Set fleet
+                // First clear all fleet inputs
+                document.querySelectorAll('.attacker-unit').forEach(input => {
+                    input.value = 0;
+                });
+
+                // Then set the fleet from planet
+                Object.keys(data.fleet).forEach(unitName => {
+                    const input = document.getElementById('attacker_' + unitName);
+                    if (input) {
+                        input.value = data.fleet[unitName];
+                    }
+                });
+            } else {
+                alert('Error loading planet data: ' + (result.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching planet data:', error);
+            alert('Error loading planet data');
+        });
+    });
 
     // Prefill data from espionage report API code if provided
     @if($prefillData)
     const prefillData = @json($prefillData);
+
+    // Prefill defender coordinates
+    if (prefillData.coordinates) {
+        document.getElementById('defender_galaxy').value = prefillData.coordinates.galaxy || 1;
+        document.getElementById('defender_system').value = prefillData.coordinates.system || 1;
+        document.getElementById('defender_position').value = prefillData.coordinates.position || 1;
+    }
 
     // Prefill defender resources
     if (prefillData.resources) {
@@ -516,10 +636,18 @@ document.addEventListener('DOMContentLoaded', function() {
         const data = {
             attacker: attackerData,
             defender: defenderData,
+            attacker_galaxy: parseInt(document.getElementById('attacker_galaxy').value) || 1,
+            attacker_system: parseInt(document.getElementById('attacker_system').value) || 1,
+            attacker_position: parseInt(document.getElementById('attacker_position').value) || 1,
             attacker_weapon: parseInt(document.getElementById('attacker_weapon').value) || 0,
             attacker_shield: parseInt(document.getElementById('attacker_shield').value) || 0,
             attacker_armor: parseInt(document.getElementById('attacker_armor').value) || 0,
+            attacker_combustion: parseInt(document.getElementById('attacker_combustion').value) || 0,
+            attacker_impulse: parseInt(document.getElementById('attacker_impulse').value) || 0,
             attacker_hyperspace: parseInt(document.getElementById('attacker_hyperspace').value) || 0,
+            defender_galaxy: parseInt(document.getElementById('defender_galaxy').value) || 1,
+            defender_system: parseInt(document.getElementById('defender_system').value) || 1,
+            defender_position: parseInt(document.getElementById('defender_position').value) || 1,
             defender_weapon: parseInt(document.getElementById('defender_weapon').value) || 0,
             defender_shield: parseInt(document.getElementById('defender_shield').value) || 0,
             defender_armor: parseInt(document.getElementById('defender_armor').value) || 0,
@@ -551,6 +679,23 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error(error);
         });
     });
+
+    function formatTravelTime(seconds) {
+        if (seconds === 0) {
+            return '0s';
+        }
+
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        const secs = seconds % 60;
+
+        let parts = [];
+        if (hours > 0) parts.push(hours + 'h');
+        if (minutes > 0) parts.push(minutes + 'm');
+        if (secs > 0) parts.push(secs + 's');
+
+        return parts.join(' ');
+    }
 
     function displayResults(result, attackerInitial, defenderInitial) {
         // Create title-to-machine-name mapping
@@ -637,6 +782,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="result-row">
                     <span class="result-label">Rounds:</span>
                     <span class="result-value">${result.rounds}</span>
+                </div>
+                <div class="result-row">
+                    <span class="result-label">Travel time:</span>
+                    <span class="result-value">${formatTravelTime(result.travel_time_seconds)}</span>
                 </div>
             </div>
 
@@ -739,9 +888,15 @@ function clearAttacker() {
             lossDisplay.textContent = '';
         }
     });
+    document.getElementById('planet-selector').value = '';
+    document.getElementById('attacker_galaxy').value = 1;
+    document.getElementById('attacker_system').value = 1;
+    document.getElementById('attacker_position').value = 1;
     document.getElementById('attacker_weapon').value = 0;
     document.getElementById('attacker_shield').value = 0;
     document.getElementById('attacker_armor').value = 0;
+    document.getElementById('attacker_combustion').value = 0;
+    document.getElementById('attacker_impulse').value = 0;
     document.getElementById('attacker_hyperspace').value = 0;
 }
 
@@ -755,6 +910,9 @@ function clearDefender() {
             lossDisplay.textContent = '';
         }
     });
+    document.getElementById('defender_galaxy').value = 1;
+    document.getElementById('defender_system').value = 1;
+    document.getElementById('defender_position').value = 1;
     document.getElementById('defender_weapon').value = 0;
     document.getElementById('defender_shield').value = 0;
     document.getElementById('defender_armor').value = 0;

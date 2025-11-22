@@ -24,6 +24,9 @@ class EspionageApiCodeService
      * @param array<string, int> $defense
      * @param array<string, int> $research
      * @param string $universe Universe identifier (e.g., "en-256")
+     * @param int|null $galaxy
+     * @param int|null $system
+     * @param int|null $position
      * @return string
      */
     public function generateApiCode(
@@ -31,7 +34,10 @@ class EspionageApiCodeService
         array $ships,
         array $defense,
         array $research,
-        string $universe
+        string $universe,
+        ?int $galaxy = null,
+        ?int $system = null,
+        ?int $position = null
     ): string {
         $data = [
             'resources' => [
@@ -43,6 +49,15 @@ class EspionageApiCodeService
             'defense' => $defense,
             'research' => $research,
         ];
+
+        // Add coordinates if provided
+        if ($galaxy !== null && $system !== null && $position !== null) {
+            $data['coordinates'] = [
+                'galaxy' => $galaxy,
+                'system' => $system,
+                'position' => $position,
+            ];
+        }
 
         // Encode data as JSON and then create a hash
         $jsonData = json_encode($data);

@@ -6,13 +6,16 @@ use Illuminate\Http\Request;
 use Illuminate\View\View;
 use OGame\GameMissions\BattleEngine\PhpBattleEngine;
 use OGame\GameObjects\Models\Units\UnitCollection;
+use OGame\Models\Planet\Coordinate;
+use OGame\Services\FleetMissionService;
 use OGame\Services\ObjectService;
+use OGame\Services\PlayerService;
 use OGame\Services\SettingsService;
 use OGame\ViewModels\UnitViewModel;
 
 class BattleSimulatorController extends OGameController
 {
-    public function index(Request $request): View
+    public function index(Request $request, PlayerService $playerService): View
     {
         // Check if battle simulator is enabled
         $settingsService = resolve(SettingsService::class);
@@ -25,6 +28,20 @@ class BattleSimulatorController extends OGameController
         if ($request->has('api')) {
             $apiCodeService = resolve(\OGame\Services\EspionageApiCodeService::class);
             $prefillData = $apiCodeService->parseApiCode($request->get('api'));
+        }
+
+        // Get user's planets (only planets, not moons)
+        $userPlanets = [];
+        foreach ($playerService->planets->allPlanets() as $planet) {
+            $coords = $planet->getPlanetCoordinates();
+            $userPlanets[] = [
+                'id' => $planet->getPlanetId(),
+                'name' => $planet->getPlanetName(),
+                'coordinates' => $coords->asString(),
+                'galaxy' => $coords->galaxy,
+                'system' => $coords->system,
+                'position' => $coords->position,
+            ];
         }
 
         // Get all ships for attacker (excluding solar satellites)
@@ -85,6 +102,7 @@ class BattleSimulatorController extends OGameController
             'defenderShips' => $defenderShips,
             'defense' => $defense,
             'prefillData' => $prefillData,
+            'userPlanets' => $userPlanets,
         ]);
     }
 
@@ -103,10 +121,20 @@ class BattleSimulatorController extends OGameController
         $attackerData = $request->input('attacker', []);
         $defenderData = $request->input('defender', []);
 
+        // Get coordinates from request
+        $attackerGalaxy = (int)$request->input('attacker_galaxy', 1);
+        $attackerSystem = (int)$request->input('attacker_system', 1);
+        $attackerPosition = (int)$request->input('attacker_position', 1);
+        $defenderGalaxy = (int)$request->input('defender_galaxy', 1);
+        $defenderSystem = (int)$request->input('defender_system', 1);
+        $defenderPosition = (int)$request->input('defender_position', 1);
+
         // Get tech levels from request
         $attackerWeapon = (int)$request->input('attacker_weapon', 0);
         $attackerShield = (int)$request->input('attacker_shield', 0);
         $attackerArmor = (int)$request->input('attacker_armor', 0);
+        $attackerCombustion = (int)$request->input('attacker_combustion', 0);
+        $attackerImpulse = (int)$request->input('attacker_impulse', 0);
         $attackerHyperspace = (int)$request->input('attacker_hyperspace', 0);
 
         $defenderWeapon = (int)$request->input('defender_weapon', 0);
@@ -127,7 +155,9 @@ class BattleSimulatorController extends OGameController
         $attackerPlayerService->setResearchLevel('weapon_technology', $attackerWeapon, true);
         $attackerPlayerService->setResearchLevel('shielding_technology', $attackerShield, true);
         $attackerPlayerService->setResearchLevel('armor_technology', $attackerArmor, true);
-        $attackerPlayerService->setResearchLevel('hyperspace_technology', $attackerHyperspace, true);
+        $attackerPlayerService->setResearchLevel('combustion_drive', $attackerCombustion, true);
+        $attackerPlayerService->setResearchLevel('impulse_drive', $attackerImpulse, true);
+        $attackerPlayerService->setResearchLevel('hyperspace_drive', $attackerHyperspace, true);
 
         // Get attacker's planet and add attacker units
         $attackerPlanetService = $attackerPlayerService->planets->current();
@@ -218,6 +248,23 @@ class BattleSimulatorController extends OGameController
         // Calculate attacker's remaining cargo capacity using attacker's tech
         $attackerCargoCapacity = $battleResult->attackerUnitsResult->getTotalCargoCapacity($attackerPlayerService);
 
+        // Calculate travel time
+        $attackerCoordinate = new Coordinate($attackerGalaxy, $attackerSystem, $attackerPosition);
+        $defenderCoordinate = new Coordinate($defenderGalaxy, $defenderSystem, $defenderPosition);
+
+        $fleetMissionService = resolve(FleetMissionService::class, ['player' => $attackerPlayerService]);
+
+        // Calculate travel time in seconds (duration at 100% speed)
+        $travelTimeSeconds = 0;
+        if (!empty($attackerFleet->units)) {
+            $travelTimeSeconds = $fleetMissionService->calculateFleetMissionDuration(
+                $attackerPlanetService,
+                $defenderCoordinate,
+                $attackerFleet,
+                10 // 100% speed
+            );
+        }
+
         // Debug: log loot calculation info
         \Log::info('Battle simulation result', [
             'attacker_cargo_capacity' => $attackerCargoCapacity,
@@ -267,6 +314,7 @@ class BattleSimulatorController extends OGameController
                 ],
                 'moon_chance' => $battleResult->moonChance,
                 'recyclers_needed' => $recyclersNeeded,
+                'travel_time_seconds' => $travelTimeSeconds,
             ],
         ]);
     }
@@ -316,6 +364,79 @@ class BattleSimulatorController extends OGameController
             }
         }
         return $result;
+    }
+
+    /**
+     * Get planet data for battle simulator (AJAX endpoint)
+     */
+    public function getPlanetData(Request $request, PlayerService $playerService)
+    {
+        // Check if battle simulator is enabled
+        $settingsService = resolve(SettingsService::class);
+        if (!$settingsService->battleSimulatorEnabled()) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Battle Simulator is disabled by the administrator.',
+            ], 403);
+        }
+
+        $planetId = (int)$request->input('planet_id');
+
+        // Find the planet in the user's planets using the getById method
+        try {
+            $planet = $playerService->planets->getById($planetId);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Planet not found.',
+            ], 404);
+        }
+
+        // Get coordinates
+        $coords = $planet->getPlanetCoordinates();
+
+        // Get fleet stationed on planet
+        $fleet = [];
+        foreach (ObjectService::getShipObjects() as $ship) {
+            // Skip solar satellites for attacker
+            if ($ship->machine_name === 'solar_satellite') {
+                continue;
+            }
+            $amount = $planet->getObjectAmount($ship->machine_name);
+            if ($amount > 0) {
+                $fleet[$ship->machine_name] = $amount;
+            }
+        }
+
+        // Get player's drive technologies
+        $combustionDrive = $playerService->getResearchLevel('combustion_drive');
+        $impulseDrive = $playerService->getResearchLevel('impulse_drive');
+        $hyperspaceDrive = $playerService->getResearchLevel('hyperspace_drive');
+
+        // Get player's combat technologies
+        $weaponTech = $playerService->getResearchLevel('weapon_technology');
+        $shieldTech = $playerService->getResearchLevel('shielding_technology');
+        $armorTech = $playerService->getResearchLevel('armor_technology');
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'coordinates' => [
+                    'galaxy' => $coords->galaxy,
+                    'system' => $coords->system,
+                    'position' => $coords->position,
+                ],
+                'fleet' => $fleet,
+                'technologies' => [
+                    'combustion_drive' => $combustionDrive,
+                    'impulse_drive' => $impulseDrive,
+                    'hyperspace_drive' => $hyperspaceDrive,
+                    'weapon_technology' => $weaponTech,
+                    'shielding_technology' => $shieldTech,
+                    'armor_technology' => $armorTech,
+                ],
+            ],
+        ]);
     }
 
     /**

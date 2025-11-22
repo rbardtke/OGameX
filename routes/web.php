@@ -117,6 +117,7 @@ Route::middleware(['auth', 'globalgame', 'locale'])->group(function () {
     Route::get('/simulation', [SimulationController::class, 'index'])->name('simulation.index');
     Route::get('/battlesimulator', [BattleSimulatorController::class, 'index'])->name('battlesimulator');
 Route::post('/battlesimulator/simulate', [BattleSimulatorController::class, 'simulate'])->name('battlesimulator.simulate');
+Route::post('/battlesimulator/planet-data', [BattleSimulatorController::class, 'getPlanetData'])->name('battlesimulator.planet-data');
 
 
     Route::get('/alliance', [AllianceController::class, 'index'])->name('alliance.index');

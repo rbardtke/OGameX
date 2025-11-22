@@ -234,7 +234,16 @@ class EspionageReport extends GameMessage
 
         // Get universe identifier from settings
         $universeId = $settingsService->universeIdentifier();
-        $apiCode = $apiCodeService->generateApiCode($resources, $shipsArray, $defenseArray, $researchArray, $universeId);
+        $apiCode = $apiCodeService->generateApiCode(
+            $resources,
+            $shipsArray,
+            $defenseArray,
+            $researchArray,
+            $universeId,
+            $this->espionageReportModel->planet_galaxy,
+            $this->espionageReportModel->planet_system,
+            $this->espionageReportModel->planet_position
+        );
 
         return [
             'subject' => $this->getSubject(),
