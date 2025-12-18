@@ -26,6 +26,11 @@ use Spatie\Permission\Traits\HasRoles;
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property int|null $planet_current
+ * @property int $dark_matter
+ * @property \Illuminate\Support\Carbon|null $dark_matter_last_regen
+ * @property bool $vacation_mode
+ * @property \Illuminate\Support\Carbon|null $vacation_mode_activated_at
+ * @property \Illuminate\Support\Carbon|null $vacation_mode_until
  * @property-read \Illuminate\Notifications\DatabaseNotificationCollection<int, \Illuminate\Notifications\DatabaseNotification> $notifications
  * @property-read int|null $notifications_count
  * @property-read \OGame\Models\UserTech|null $tech
@@ -78,7 +83,7 @@ class User extends Authenticatable
      * @var list<string>
      */
     protected $fillable = [
-        'username', 'email', 'password', 'lang',
+        'username', 'email', 'password', 'lang', 'espionage_probes_amount',
     ];
 
     /**
@@ -91,6 +96,18 @@ class User extends Authenticatable
     ];
 
     /**
+     * The attributes that should be cast.
+     *
+     * @var array<string, string>
+     */
+    protected $casts = [
+        'vacation_mode' => 'boolean',
+        'vacation_mode_activated_at' => 'datetime',
+        'vacation_mode_until' => 'datetime',
+        'dark_matter_last_regen' => 'datetime',
+    ];
+
+    /**
      * Get the user tech record associated with the user.
      *
      * @return HasOne
@@ -98,5 +115,35 @@ class User extends Authenticatable
     public function tech(): HasOne
     {
         return $this->hasOne(UserTech::class);
+    }
+
+    /**
+     * Get the dark matter transactions for the user.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
+    public function darkMatterTransactions()
+    {
+        return $this->hasMany(DarkMatterTransaction::class);
+    }
+
+    /**
+     * Check if the user is currently online.
+     * A user is considered online if they were active within the last 15 minutes.
+     *
+     * @return bool
+     */
+    public function isOnline(): bool
+    {
+        if (!$this->time) {
+            return false;
+        }
+
+        // User is online if last activity was within 15 minutes (900 seconds)
+        $lastActivity = (int)$this->time;
+        $currentTime = time();
+        $timeDifference = $currentTime - $lastActivity;
+
+        return $timeDifference <= 900; // 15 minutes
     }
 }

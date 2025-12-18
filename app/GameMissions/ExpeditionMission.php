@@ -21,6 +21,8 @@ use OGame\Models\FleetMission;
 use OGame\Models\Planet\Coordinate;
 use OGame\Models\Resources;
 use OGame\Models\Highscore;
+use OGame\Models\User;
+use OGame\Enums\FleetMissionStatus;
 use OGame\Enums\FleetSpeedType;
 use OGame\Enums\HighscoreTypeEnum;
 use OGame\Services\PlanetService;
@@ -34,6 +36,7 @@ class ExpeditionMission extends GameMission
     protected static int $typeId = 15;
     protected static bool $hasReturnMission = true;
     protected static FleetSpeedType $fleetSpeedType = FleetSpeedType::peaceful;
+    protected static FleetMissionStatus $friendlyStatus = FleetMissionStatus::Neutral;
 
     /**
      * Configurable outcome weights based on community research.
@@ -76,6 +79,11 @@ class ExpeditionMission extends GameMission
      */
     public function isMissionPossible(PlanetService $planet, Coordinate $targetCoordinate, PlanetType $targetType, UnitCollection $units): MissionPossibleStatus
     {
+        // Cannot send missions while in vacation mode
+        if ($planet->getPlayer()->isInVacationMode()) {
+            return new MissionPossibleStatus(false, 'You cannot send missions while in vacation mode!');
+        }
+
         // Expedition mission is only possible for position 16.
         if ($targetCoordinate->position !== 16) {
             return new MissionPossibleStatus(false);
@@ -150,7 +158,14 @@ class ExpeditionMission extends GameMission
         $mission->save();
 
         // Create and start the return mission.
-        $this->startReturn($mission, $returnResources, $units, $additionalReturnTripTime);
+        // Add parent mission resources to any resources found during expedition.
+        $totalResources = new Resources(
+            $mission->metal + $returnResources->metal->get(),
+            $mission->crystal + $returnResources->crystal->get(),
+            $mission->deuterium + $returnResources->deuterium->get(),
+            0
+        );
+        $this->startReturn($mission, $totalResources, $units, $additionalReturnTripTime);
     }
 
     /**
@@ -282,7 +297,11 @@ class ExpeditionMission extends GameMission
 
         // Get max cargo capacity of the fleet.
         $units = $this->fleetMissionService->getFleetUnits(mission: $mission);
-        $maxCargoCapacity = $units->getTotalCargoCapacity($player);
+        $totalCargoCapacity = $units->getTotalCargoCapacity($player);
+
+        // Subtract resources already in cargo from parent mission
+        $resourcesInCargo = $mission->metal + $mission->crystal + $mission->deuterium;
+        $maxCargoCapacity = $totalCargoCapacity - $resourcesInCargo;
 
         // Determine the max resource find.
         $maxResourceFind = $this->determineMaxResourceFind();
@@ -406,7 +425,11 @@ class ExpeditionMission extends GameMission
 
         // Get max cargo capacity of the fleet.
         $units = $this->fleetMissionService->getFleetUnits(mission: $mission);
-        $maxCargoCapacity = $units->getTotalCargoCapacity($player);
+        $totalCargoCapacity = $units->getTotalCargoCapacity($player);
+
+        // Subtract resources already in cargo from parent mission
+        $resourcesInCargo = $mission->metal + $mission->crystal + $mission->deuterium;
+        $maxCargoCapacity = $totalCargoCapacity - $resourcesInCargo;
 
         // Determine the max resource find.
         $maxResourceFind = $this->determineMaxResourceFind();
@@ -493,10 +516,34 @@ class ExpeditionMission extends GameMission
         // Load the mission owner user
         $player = $this->playerServiceFactory->make($mission->user_id, true);
 
-        // TODO: Add actual dark matter to player when dark matter itself is implemented.
+        // Check if fleet has Pathfinder ships
+        $fleetUnits = $this->fleetMissionService->getFleetUnits(mission: $mission);
+        $objectService = app(ObjectService::class);
+        $hasPathfinder = $fleetUnits->hasUnit($objectService->getShipObjectByMachineName('pathfinder'));
+
+        // Calculate Dark Matter reward
+        $darkMatterService = app(\OGame\Services\DarkMatterService::class);
+        $darkMatterAmount = $darkMatterService->calculateExpeditionReward($hasPathfinder);
+
+        // Credit Dark Matter to player
+        $user = User::find($mission->user_id);
+        if ($user === null) {
+            logger()->error("User not found for expedition Dark Matter reward: user_id={$mission->user_id}");
+            return;
+        }
+
+        $darkMatterService->credit(
+            $user,
+            $darkMatterAmount,
+            \OGame\Enums\DarkMatterTransactionType::EXPEDITION->value,
+            'Dark Matter found during expedition'
+        );
 
         $message_variation_id = ExpeditionGainDarkMatter::getRandomMessageVariationId();
-        $this->messageService->sendSystemMessageToPlayer($player, ExpeditionGainDarkMatter::class, ['message_variation_id' => $message_variation_id]);
+        $this->messageService->sendSystemMessageToPlayer($player, ExpeditionGainDarkMatter::class, [
+            'message_variation_id' => $message_variation_id,
+            'dark_matter_amount' => $darkMatterAmount
+        ]);
     }
 
     /**
@@ -506,12 +553,18 @@ class ExpeditionMission extends GameMission
      */
     private function processExpeditionGainMerchantTradeOutcome(FleetMission $mission): void
     {
-        // TODO: Implement merchant trade logic
+        // Load the mission owner user
         $player = $this->playerServiceFactory->make($mission->user_id, true);
 
-        // TODO: Send appropriate message once ExpeditionMerchantTrade message class exists
-        // $message_variation_id = ExpeditionMerchantTrade::getRandomMessageVariationId();
-        // $this->messageService->sendSystemMessageToPlayer($player, ExpeditionMerchantTrade::class, ['message_variation_id' => $message_variation_id]);
+        // Call a merchant for the player (or improve existing merchant rates)
+        // Behavior:
+        // - If no merchant active: calls a random resource trader (metal/crystal/deuterium)
+        // - If merchant already active: keeps same type, improves rates (never worsens)
+        \OGame\Services\MerchantService::addExpeditionBonus($player);
+
+        // Send a message to the player with the merchant found outcome
+        $message_variation_id = \OGame\GameMessages\ExpeditionMerchantFound::getRandomMessageVariationId();
+        $this->messageService->sendSystemMessageToPlayer($player, \OGame\GameMessages\ExpeditionMerchantFound::class, ['message_variation_id' => $message_variation_id]);
     }
 
     /**
@@ -587,10 +640,9 @@ class ExpeditionMission extends GameMission
             if ($settingsService->get($outcome->getSettingKey()) === '1') {
                 // TODO: Remove this filter once outcomes are fully implemented
                 // For now, skip unimplemented outcomes
+                // @phpstan-ignore-next-line - This check is for future-proofing when new outcomes are added
                 if (in_array($outcome, [
-                    ExpeditionOutcomeType::GainDarkMatter,
                     ExpeditionOutcomeType::GainItems,
-                    ExpeditionOutcomeType::GainMerchantTrade,
                     ExpeditionOutcomeType::Battle,
                 ])) {
                     continue;

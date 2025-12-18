@@ -14,6 +14,11 @@
             <div class="c-right"></div>
             <header data-anchor="technologyDetails" data-technologydetails-size="large" style="background-image:url({{ asset('img/headers/facilities/' . $header_filename) }}.jpg);">
                 <h2>Facilities - {{ $planet_name }}</h2>
+                @if (isset($jump_gate_level) && $jump_gate_level > 0)
+                    <div id="slot01" class="slot">
+                        <a href="{{ route('jumpgate.index') }}" class="overlay" data-overlay-title="@lang('Use Jump Gate')">@lang('Jump Gate')</a>
+                    </div>
+                @endif
             </header>
             <div id="technologydetails_wrapper">
                 <div id="technologydetails_content"></div>
@@ -38,6 +43,9 @@
                                 data-end="1713604880"
                                 data-total="61608"
                                 title="{{ $building->object->title }}<br/>@lang('Under construction')"
+                            @elseif ($is_in_vacation_mode)
+                                data-status="disabled"
+                                title="{{ $building->object->title }}<br/>@lang('Error, player is in vacation mode')"
                             @elseif (!$building->requirements_met)
                                 data-status="off"
                                 title="{{ $building->object->title }}<br/>@lang('Requirements are not met!')"
@@ -68,6 +76,7 @@
                             @elseif (!$building->valid_planet_type)
                             @elseif (!$building->enough_resources)
                             @elseif ($build_queue_max)
+                            @elseif ($is_in_vacation_mode)
                             @elseif ($building->research_in_progress && $building->object->machine_name == 'research_lab')
                             @elseif ($building->ship_or_defense_in_progress  && ( $building->object->machine_name == 'shipyard' || $building->object->machine_name == 'nano_factory' ) )
                             @else
@@ -78,7 +87,7 @@
                                 </button>
                             @endif
                             @if ($building->currently_building)
-                                <span class="targetlevel" data-value="{{ $building->current_level + 1 }}" data-bonus="0">{{ $building->current_level + 1 }}</span>
+                                <span class="targetlevel" data-value="{{ $building->target_level ?? ($building->current_level + 1) }}" data-bonus="0">{{ $building->target_level ?? ($building->current_level + 1) }}</span>
                                 <div class="cooldownBackground"></div>
                                 <time-counter><time class="countdown buildingCountdown" id="countdownbuildingDetails" data-segments="2">...</time></time-counter>
                             @endif
@@ -106,7 +115,7 @@
                         <div class="footer"></div>
                     </div>
                     <script type="text/javascript">
-                        var scheduleBuildListEntryUrl = '{{ route('resources.addbuildrequest.post') }}';
+                        var scheduleBuildListEntryUrl = '{{ route('facilities.addbuildrequest.post') }}';
                         var LOCA_ERROR_INQUIRY_NOT_WORKED_TRYAGAIN = 'Your last action could not be processed. Please try again.';
                         redirectPremiumLink = '#TODO_index.php?page=premium&showDarkMatter=1'
                     </script>

@@ -1,7 +1,7 @@
 <div class="detail_msg_head">
     <div class="msg_status"></div>
     <span class="msg_title new blue_txt">{!! $subject !!}</span>
-    <span class="msg_date fright">21.05.2024 19:00:28</span>
+    <span class="msg_date fright">{{ $date }}</span>
     <br/>
     <span class="msg_sender_label">@lang('From'): </span>
     <span class="msg_sender">{{ $from }}</span>
@@ -48,7 +48,7 @@
         <span>@lang('Alliance Class'):&nbsp;<span class="alliance_class small none">@lang('No alliance class selected')</span></span>
     </div>
     <div class="detail_txt">
-        @lang('Chance of counter-espionage'): 0%
+        @lang('Chance of counter-espionage'): {{ $counter_espionage_chance }}%
         <div class="">
             @lang('Your espionage does not show abnormalities in the atmosphere of the planet. There appears to have been no activity on the planet within the last hour.')
         </div>

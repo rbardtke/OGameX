@@ -25415,17 +25415,6 @@ ogame.chat = {
             }
             $(".cb_playerlist_box").toggle();
             c.updateCustomScrollbar($(".scrollContainer"), true);
-            console.log('initChatBar()');
-            $.ajax({
-                url: chatUrl,
-                type: "POST",
-                dataType: "json",
-                data: {action: "toggleChatBar"},
-                success: function (b) {
-                },
-                error: function (h, b, g) {
-                }
-            })
         }).on("click.chatBar", ".chat_bar_list_item", function (a) {
             a.stopPropagation();
             if (!isNaN($(this).data("playerid"))) {
@@ -25695,28 +25684,60 @@ ogame.chat = {
         $.cookie("visibleChats", JSON.stringify(b), {expires: 7})
     },
     showPlayerList: function (d) {
-        // TODO: this code is part of "0 Contact(s) online." chat system.
-        // TODO: re-enable this code when working on this feature. For now its disabled.
-        return;
         var c = ogame.chat;
         if ($.inArray(d, c.playerListSelector) === -1) {
             c.playerListSelector.push(d)
         }
         if (c.isLoadingPlayerList === false && c.playerList === null) {
             c.isLoadingPlayerList = true;
-            console.log('showPlayerList()');
             $.ajax({
-                url: chatUrl,
-                type: "POST",
+                url: '/buddies/online',
+                type: "GET",
                 dataType: "json",
-                data: {action: "showPlayerList"},
-                success: function (a) {
-                    c.playerList = a.content;
+                success: function (response) {
+                    // Build the HTML for the player list matching original game structure
+                    var html = '<div class="js_playerlist pl_container contentbox fleft">';
+                    html += '<h2 class="header"><span class="c-right"></span><span class="c-left"></span>Player list</h2>';
+                    html += '<div class="content">';
+
+                    // Buddies section
+                    html += '<div class="playerlist_box js_accordion ui-accordion ui-widget ui-helper-reset" role="tablist">';
+                    html += '<h3 class="ui-accordion-header ui-corner-top ui-state-default ui-accordion-header-active ui-state-active ui-accordion-icons" role="tab">';
+                    html += '<span class="ui-accordion-header-icon ui-icon ui-icon-triangle-1-s"></span>Buddies</h3>';
+                    html += '<div class="ui-accordion-content ui-corner-bottom ui-helper-reset ui-widget-content ui-accordion-content-active" role="tabpanel">';
+                    html += '<div class="playerlist_top_box"></div>';
+                    html += '<div class="scrollContainer"><ul class="playerlist">';
+
+                    if (response.success && response.buddies && response.buddies.length > 0) {
+                        response.buddies.forEach(function(buddy, index) {
+                            // TODO: Clicking on a buddy should open a chat window with that player
+                            html += '<li class="playerlist_item ' + (index % 2 === 0 ? '' : 'odd') + '" data-playerid="' + buddy.id + '">';
+                            html += '<p class="playername">';
+                            html += '<span class="playerstatus tooltip online" data-tooltip-title="online"></span>';
+                            html += buddy.username + '</p>';
+                            html += '<span class="new_msg_count noMessage" data-playerid="' + buddy.id + '" data-new-messages="0">0</span>';
+                            html += '<span class="chatstatus cs_active fright"></span>';
+                            html += '</li>';
+                        });
+                    } else {
+                        html += '<li class="no_buddies">No buddies online</li>';
+                    }
+
+                    html += '</ul></div></div></div>';
+                    html += '</div>';
+                    html += '<div class="footer"><div class="c-right"></div><div class="c-left"></div></div>';
+                    html += '</div>';
+
+                    // IMPORTANT: Always set playerList so initChatBar() can be called
+                    c.playerList = html;
                     c.isLoadingPlayerList = false;
                     c._showPlayerList()
                 },
                 error: function (f, a, b) {
-                    c.isLoadingPlayerList = false
+                    console.error('showPlayerList() - Error loading buddies:', a, b);
+                    c.isLoadingPlayerList = false;
+                    c.playerList = '<div class="content"><p>Error loading buddies</p></div>';
+                    c._showPlayerList()
                 }
             })
         } else {
@@ -60324,8 +60345,6 @@ ogame.chat = {
     });
   },
   showPlayerList: function (selector) {
-      // TODO: re-enable later
-      return;
     var $this = ogame.chat;
 
     if (window.deactivateChatBecauseOfLogout) {
@@ -60339,20 +60358,77 @@ ogame.chat = {
     if ($this.isLoadingPlayerList === false && $this.playerList === null) {
       $this.isLoadingPlayerList = true;
       $.ajax({
-        url: chatUrl,
-        type: 'POST',
-        dataType: 'json',
-        data: {
-          action: 'showPlayerList'
-        },
-        success: function (data) {
-          $this.playerList = data.content;
-          $this.isLoadingPlayerList = false;
+        url: '/buddies/online',
+        type: "GET",
+        dataType: "json",
+        success: function (response) {
+          // Build the HTML for the player list matching original game structure
+          var html = '<div class="js_playerlist pl_container contentbox fleft">';
+          html += '<h2 class="header"><span class="c-right"></span><span class="c-left"></span>Player list</h2>';
+          html += '<div class="content">';
 
-          $this._showPlayerList();
+          // Buddies section
+          html += '<div class="playerlist_box js_accordion ui-accordion ui-widget ui-helper-reset" role="tablist">';
+          html += '<h3 class="ui-accordion-header ui-corner-top ui-state-default ui-accordion-header-active ui-state-active ui-accordion-icons" role="tab">';
+          html += '<span class="ui-accordion-header-icon ui-icon ui-icon-triangle-1-s"></span>Buddies</h3>';
+          html += '<div class="ui-accordion-content ui-corner-bottom ui-helper-reset ui-widget-content ui-accordion-content-active" role="tabpanel">';
+          html += '<div class="playerlist_top_box"></div>';
+          html += '<div class="scrollContainer"><ul class="playerlist">';
+
+          if (response.success && response.buddies && response.buddies.length > 0) {
+            response.buddies.forEach(function(buddy, index) {
+              // TODO: Clicking on a buddy should open a chat window with that player
+              var statusClass = buddy.isOnline ? 'online' : 'offline';
+              var statusTitle = buddy.isOnline ? 'online' : 'offline';
+
+              html += '<li class="playerlist_item ' + (index % 2 === 0 ? '' : 'odd') + '" data-playerid="' + buddy.id + '">';
+              html += '<p class="playername">';
+              html += '<span class="playerstatus tooltip ' + statusClass + '" data-tooltip-title="' + statusTitle + '"></span>';
+              html += buddy.username + '</p>';
+              html += '<span class="new_msg_count noMessage" data-playerid="' + buddy.id + '" data-new-messages="0">0</span>';
+              html += '<span class="chatstatus cs_active fright"></span>';
+              html += '</li>';
+            });
+          } else {
+            html += '<li class="no_buddies">No buddies</li>';
+          }
+
+          html += '</ul></div></div></div>';
+
+          // TODO: Alliance section - implement alliance chat and member list
+          html += '<div class="playerlist_box js_accordion ui-accordion ui-widget ui-helper-reset" role="tablist">';
+          html += '<h3 class="ui-accordion-header ui-corner-top ui-state-default ui-accordion-icons" role="tab">';
+          html += '<span class="ui-accordion-header-icon ui-icon ui-icon-triangle-1-e"></span>Alliance</h3>';
+          html += '<div class="ui-accordion-content ui-corner-bottom ui-helper-reset ui-widget-content" role="tabpanel" style="display: none;">';
+          html += '<div class="playerlist_top_box"></div>';
+          html += '<div class="scrollContainer"><ul class="playerlist">';
+          html += '<li class="no_buddies">Alliance chat not yet implemented</li>';
+          html += '</ul></div></div></div>';
+
+          // TODO: Strangers section - implement strangers/other players list
+          html += '<div class="playerlist_box js_accordion ui-accordion ui-widget ui-helper-reset" role="tablist">';
+          html += '<h3 class="ui-accordion-header ui-corner-top ui-state-default ui-accordion-icons" role="tab">';
+          html += '<span class="ui-accordion-header-icon ui-icon ui-icon-triangle-1-e"></span>Strangers</h3>';
+          html += '<div class="ui-accordion-content ui-corner-bottom ui-helper-reset ui-widget-content" role="tabpanel" style="display: none;">';
+          html += '<div class="playerlist_top_box"></div>';
+          html += '<div class="scrollContainer"><ul class="playerlist">';
+          html += '<li class="no_buddies">Strangers list not yet implemented</li>';
+          html += '</ul></div></div></div>';
+
+          html += '</div>';
+          html += '<div class="footer"><div class="c-right"></div><div class="c-left"></div></div>';
+          html += '</div>';
+
+          // IMPORTANT: Always set playerList so initChatBar() can be called
+          $this.playerList = html;
+          $this.isLoadingPlayerList = false;
+          $this._showPlayerList()
         },
         error: function (jqXHR, textStatus, errorThrown) {
+          console.error('showPlayerList() - Error loading buddies:', textStatus, errorThrown);
           $this.isLoadingPlayerList = false;
+          $this.playerList = '<div class="content"><p>Error loading buddies</p></div>';
+          $this._showPlayerList()
         }
       });
     } else {
@@ -69869,7 +69945,55 @@ function initPreferences() {
         return false;
       }
     });
-  } // Im aktiven Tab aber die richtige Auswahl öffnen
+  }
+
+  // Vacation mode activation confirmation
+  $("#prefs").on('submit', function (e) {
+    var $thisObj = $(this);
+
+    // Check if trying to activate vacation mode (checkbox is checked and has class 'notOnVacation')
+    if ($thisObj.find('input#urlaubs_modus.notOnVacation:checked').length && !moveInProgress) {
+      if (!$thisObj.data('vacation_confirming')) {
+        $thisObj.data('vacation_confirming', true);
+        errorBoxDecision(
+          LocalizationStrings.attention,
+          preferenceLoca.vacationModeQuestion,
+          LocalizationStrings.yes,
+          LocalizationStrings.no,
+          function () {
+            // User clicked yes - submit the form
+            $thisObj.data('vacation_confirming', false);
+            $thisObj.off('submit').submit();
+          },
+          function () {
+            // User clicked no - reset the checkbox and clear the flag
+            $thisObj.find('input#urlaubs_modus').prop('checked', false);
+            $thisObj.data('vacation_confirming', false);
+          }
+        );
+        e.preventDefault();
+        return false;
+      }
+    }
+  });
+
+  // Vacation mode button handler
+  $("#vacation-mode-button").on('click', function(e) {
+    e.preventDefault();
+    var vacationCheckbox = $("#urlaubs_modus");
+
+    // Toggle the checkbox state
+    if (vacationCheckbox.is(':checked')) {
+      vacationCheckbox.prop('checked', false);
+    } else {
+      vacationCheckbox.prop('checked', true);
+    }
+
+    // Trigger form submission which will handle the confirmation popup
+    $("#prefs").submit();
+  });
+
+  // Im aktiven Tab aber die richtige Auswahl öffnen
 
 
   if (tabsDisabled) {
@@ -78595,29 +78719,31 @@ function getPlayerTooltip(galaxyContentObject) {
   let buddyLink = "";
 
   if (actions.buddies.available) {
-    if (player.isAdmin) {
-      buddyLink = `
+    buddyLink = `
+                <li><a href="javascript:void(0);" class="sendBuddyRequestLink" data-playerid="${actions.buddies.playerId}" data-playername="${actions.buddies.playerName}">${actions.buddies.title}</a></li>
+            `;
+  }
+
+  // Support link for admins (TODO: Implement proper support contact when messaging system is ready)
+  let supportLink = "";
+  if (actions.support && actions.support.available) {
+    supportLink = `
                 <li>
                     <a style="margin-top: 4px;"
-                    href="${actions.buddies.link}"
-                    target="_blank" title="${actions.buddies.title}"
+                    href="${actions.support.link}"
+                    target="_blank" title="${actions.support.title}"
                     class="js_hideTipOnMobile no_decoration">
                         <span class="support_icon icon icon_mail" style="margin-top: 5px;"></span> &nbsp;
-                        <div style="position:absolute; top: 32px;left:30px">${actions.buddies.title}</div>
+                        <div style="position:absolute; top: 32px;left:30px">${actions.support.title}</div>
                     </a>
                 </li>
             `;
-    } else {
-      buddyLink = `
-                <li><a href="${actions.buddies.link}" class="overlay" data-overlay-title="${actions.buddies.title}">${actions.buddies.title}</a></li>
-            `;
-    }
   }
 
   let ignoreLink = "";
 
   if (actions.ignore.available) {
-    ignoreLink = `<li><a href="${actions.ignore.link}">${actions.ignore.title}</a></li>`;
+    ignoreLink = `<li><a href="javascript:void(0);" class="ignorePlayerLink" data-playerid="${actions.ignore.playerId}" data-playername="${actions.ignore.playerName}">${actions.ignore.title}</a></li>`;
   }
 
   return `
@@ -78628,6 +78754,7 @@ function getPlayerTooltip(galaxyContentObject) {
                 ${rankLink}
                 ${messageLink}
                 ${buddyLink}
+                ${supportLink}
                 ${ignoreLink}
             </ul>
         </div>
@@ -78876,36 +79003,32 @@ function getActions(galaxyContentObject, systemData) {
     } else {
       messageLink = `<a href="${actions.message.link}" class="tooltip" data-playerId="${player.playerId}" title="${actions.message.title}"><span class="icon icon_chat"></span></a>`;
     }
-  } else {
-    if (player.isAdmin) {
-      messageLink = `
-                <a href="${actions.buddies.link}"
-                    target="_blank" title="${actions.buddies.title}"
+  } else if (actions.support && actions.support.available) {
+    // Support button for admins (TODO: Implement proper support contact when messaging system is ready)
+    messageLink = `
+                <a href="${actions.support.link}"
+                    target="_blank" title="${actions.support.title}"
                     class="tooltip js_hideTipOnMobile icon">
                         <span class="support_icon icon icon_mail"></span>
                 </a>
             `;
-    } else {
-      messageLink = `<div class="emptyAction"></div>`;
-    }
+  } else {
+    messageLink = `<div class="emptyAction"></div>`;
   }
 
   let buddyLink = "";
 
   if (actions.buddies.available) {
-    if (player.isAdmin === false) {
-      buddyLink = `
-            <a class="tooltip overlay buddyrequest ipiHintable"
-               title="${actions.buddies.title}"
-               href="${actions.buddies.link}"
-               data-overlay-title="${actions.buddies.title}"
+    buddyLink = `
+            <a class="tooltip buddyrequest ipiHintable"
+               title="Buddy request to player"
+               href="javascript:void(0);"
+               data-playerid="${actions.buddies.playerId}"
+               data-playername="${actions.buddies.playerName}"
                data-ipi-hint="ipiGalaxySendBuddyRequest"
             >
                 <span class="icon icon_user"></span>
             </a>`;
-    } else {
-      buddyLink = `<div class="emptyAction"></div>`;
-    }
   } else {
     buddyLink = `<div class="emptyAction"></div>`;
   }
@@ -84311,3 +84434,113 @@ TechnologyDetails.prototype.setMaximumBuildableAmount = function () {
   var $buildAmount = $('#technologydetails #build_amount');
   $buildAmount.val($buildAmount.attr('max'));
 };
+
+// Buddy system and ignore player handlers
+// NOTE: The sendBuddyRequestLink handler is now defined in the blade templates
+// (galaxy/index.blade.php and highscore/players_points.blade.php) to open a BBCode dialog.
+// The old direct-send implementation has been removed to avoid conflicts.
+
+$(document).on('click', '.ignorePlayerLink', function(e) {
+    e.preventDefault();
+    var playerId = $(this).data('playerid');
+    
+    // Create a form and submit it to redirect
+    var form = $('<form>', {
+        'method': 'POST',
+        'action': '/buddies/ignore'
+    });
+    
+    form.append($('<input>', {
+        'type': 'hidden',
+        'name': '_token',
+        'value': $('meta[name="csrf-token"]').attr('content')
+    }));
+    
+    form.append($('<input>', {
+        'type': 'hidden',
+        'name': 'ignored_user_id',
+        'value': playerId
+    }));
+    
+    $('body').append(form);
+    form.submit();
+});
+
+(function () {
+  var originalInitDetailMessages = ogame.messages.initDetailMessages;
+
+  ogame.messages.initDetailMessages = function (commentsAllowed) {
+    originalInitDetailMessages.call(ogame.messages, commentsAllowed);
+
+    $(".overlayDiv ul.pagination")
+      .off("click.msgPagination")
+      .on("click.msgPagination", "li.p_li a", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if ($(this).hasClass("disabled")) {
+          return false;
+        }
+
+        var messageId = $(this).data("messageid");
+        var tab = $(this).data("tab");
+        var subtab = $(this).data("subtab");
+
+        if (!messageId) {
+          return false;
+        }
+
+        var url = "/ajax/messages/" + messageId;
+        if (tab) {
+          url += "?tab=" + encodeURIComponent(tab);
+          if (subtab) {
+            url += "&subtab=" + encodeURIComponent(subtab);
+          }
+        }
+
+        var $overlayDiv = $(this).closest(".overlayDiv");
+        if ($overlayDiv.length === 0) {
+          $overlayDiv = $(".overlayDiv");
+        }
+
+        var $uiDialog = $overlayDiv.closest(".ui-dialog");
+        var dialogWidth = $uiDialog.length ? $uiDialog.width() : null;
+        var dialogHeight = $uiDialog.length ? $uiDialog.height() : null;
+        var dialogPosition = $uiDialog.length ? $uiDialog.position() : null;
+
+        $.get(url, function (response) {
+          try {
+            removeTooltip($overlayDiv.find(getTooltipSelector()));
+          } catch (err) {}
+
+          $overlayDiv.empty().append(response);
+
+          if ($uiDialog.length && dialogWidth && dialogHeight) {
+            $uiDialog.css({
+              width: dialogWidth,
+              height: dialogHeight,
+            });
+            if (dialogPosition) {
+              $uiDialog.css({
+                top: dialogPosition.top,
+                left: dialogPosition.left,
+              });
+            }
+            $uiDialog.hide().show();
+          }
+
+          ogame.messages.initDetailMessages(true);
+
+          try {
+            initTooltips();
+          } catch (err) {}
+        }).fail(function () {
+          if (typeof fadeBox === "function" && typeof loca !== "undefined") {
+            fadeBox(loca.LOCA_GALAXY_ERROR_OCCURED, 1);
+          }
+        });
+
+        return false;
+      });
+  };
+})();

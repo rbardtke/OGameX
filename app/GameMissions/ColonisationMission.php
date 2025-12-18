@@ -2,6 +2,7 @@
 
 namespace OGame\GameMissions;
 
+use OGame\Enums\FleetMissionStatus;
 use OGame\Enums\FleetSpeedType;
 use OGame\GameMessages\ColonyEstablished;
 use OGame\GameMessages\ColonyEstablishFailAstrophysics;
@@ -21,12 +22,18 @@ class ColonisationMission extends GameMission
     protected static int $typeId = 7;
     protected static bool $hasReturnMission = false;
     protected static FleetSpeedType $fleetSpeedType = FleetSpeedType::peaceful;
+    protected static FleetMissionStatus $friendlyStatus = FleetMissionStatus::Neutral;
 
     /**
      * @inheritdoc
      */
     public function isMissionPossible(PlanetService $planet, Coordinate $targetCoordinate, PlanetType $targetType, UnitCollection $units): MissionPossibleStatus
     {
+        // Cannot send missions while in vacation mode
+        if ($planet->getPlayer()->isInVacationMode()) {
+            return new MissionPossibleStatus(false, 'You cannot send missions while in vacation mode!');
+        }
+
         // Colonisation mission is only possible for planets.
         if ($targetType !== PlanetType::Planet) {
             return new MissionPossibleStatus(false);
@@ -125,6 +132,7 @@ class ColonisationMission extends GameMission
         $units->removeUnit($colony_ship, 1);
 
         // Create and start the return mission (if the colonisation mission had ships other than the colony ship itself).
+        // Resources were delivered to the new colony, so return with empty cargo.
         $this->startReturn($mission, new Resources(0, 0, 0, 0), $units);
     }
 

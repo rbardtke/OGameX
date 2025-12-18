@@ -2,6 +2,7 @@
 
 namespace OGame\GameMissions;
 
+use OGame\Enums\FleetMissionStatus;
 use OGame\Enums\FleetSpeedType;
 use OGame\GameMessages\FleetDeployment;
 use OGame\GameMessages\FleetDeploymentWithResources;
@@ -19,12 +20,18 @@ class DeploymentMission extends GameMission
     protected static int $typeId = 4;
     protected static bool $hasReturnMission = false;
     protected static FleetSpeedType $fleetSpeedType = FleetSpeedType::peaceful;
+    protected static FleetMissionStatus $friendlyStatus = FleetMissionStatus::Neutral;
 
     /**
      * @inheritdoc
      */
     public function isMissionPossible(PlanetService $planet, Coordinate $targetCoordinate, PlanetType $targetType, UnitCollection $units): MissionPossibleStatus
     {
+        // Cannot send missions while in vacation mode
+        if ($planet->getPlayer()->isInVacationMode()) {
+            return new MissionPossibleStatus(false, 'You cannot send missions while in vacation mode!');
+        }
+
         // Deployment mission is only possible for planets and moons.
         if (!in_array($targetType, [PlanetType::Planet, PlanetType::Moon])) {
             return new MissionPossibleStatus(false);

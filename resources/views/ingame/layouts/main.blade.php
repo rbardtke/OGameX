@@ -116,7 +116,7 @@
                            accesskey=""
                            href="{{ route('buddies.index') }}"
                         >
-                            @lang('Buddies')</a>
+                            @lang('Buddies')@if($buddyRequestCount > 0) <span style="color: white;">({{ $buddyRequestCount }})</span>@endif</a>
                     </li>
                     <li><a class="overlay"
                            href="{{ route('search.overlay') }}"
@@ -216,14 +216,14 @@
                 </div>
                 <div class="resource_tile darkmatter">
                     <div id="darkmatter_box" class="darkmatter tooltipHTML resource ipiHintable tpd-hideOnClickOutside"
-                         title="@lang('Dark Matter')|<table class=&quot;resourceTooltip&quot;><tr><th>Available:</th><td><span class=&quot;&quot;>19,890</span></td></tr><tr><th>Purchased</th><td><span class=&quot;&quot;>225</span></td></tr><tr><th>Found</th><td><span class=&quot;&quot;>19,665</span></td></tr></table>"
+                         title="@lang('Dark Matter')|<table class=&quot;resourceTooltip&quot;><tr><th>Available:</th><td><span class=&quot;&quot;>{!! $resources['darkmatter']['amount_formatted'] !!}</span></td></tr></table>"
                          data-tooltip-button="Purchase Dark Matter" data-ipi-hint="ipiResourcedarkmatter">
                         <a href="#TODO_page=payment" class="overlay">
                             <img src="/img/icons/401d1a91ff40dc7c8acfa4377d3d65.gif">
                             <div class="resourceIcon darkmatter"></div>
                         </a>
                         <span class="value">
-                        <span id="resources_darkmatter" data-raw="19890" class="overlay">19,890</span>
+                        <span id="resources_darkmatter" data-raw="{!! $resources['darkmatter']['amount'] !!}" class="overlay">{!! $resources['darkmatter']['amount_formatted'] !!}</span>
                     </span>
                     </div>
                 </div>
@@ -375,7 +375,13 @@ Combat simulation save slots +20">
 
                     <li>
                         <span class="menu_icon">
-                            <div class="menuImage station {{(Request::is('facilities') ? 'highlighted' : '') }}"></div>
+                            @if ($currentPlanet->isMoon() && $currentPlanet->getObjectLevel('jump_gate') > 0)
+                                <a href="{{ route('jumpgate.index') }}" class="overlay tooltipRight js_hideTipOnMobile" target="_self" data-overlay-title="@lang('Jump Gate')" title="@lang('Jump Gate')">
+                                    <div class="menuImage station highlighted ipiHintable" data-ipi-hint="ipiToolbarJumpgate"></div>
+                                </a>
+                            @else
+                                <div class="menuImage station"></div>
+                            @endif
                         </span>
                         <a class="menubutton {{(Request::is('facilities') ? 'selected' : '') }}"
                            href="{{ route('facilities.index') }}"
@@ -388,15 +394,15 @@ Combat simulation save slots +20">
 
                     <li>
                         <span class="menu_icon">
-                            <a href="{{ route('merchant.index') }}#page=traderResources&amp;animation=false"
+                            <a href="{{ route('merchant.resource-market') }}"
                                class="trader tooltipRight js_hideTipOnMobile "
                                target="_self"
                                title="Resource Market">
-                                <div class="menuImage traderOverview {{(Request::is('merchant') ? 'highlighted' : '') }}">
+                                <div class="menuImage traderOverview {{(Request::is('merchant*') ? 'highlighted' : '') }}">
                                 </div>
                             </a>
                         </span>
-                        <a class="menubutton premiumHighligt {{(Request::is('merchant') ? 'selected' : '') }}"
+                        <a class="menubutton premiumHighligt {{(Request::is('merchant*') ? 'selected' : '') }}"
                            href="{{ route('merchant.index') }}"
                            accesskey=""
                            target="_self"
@@ -593,7 +599,9 @@ Combat simulation save slots +20">
                 var activateToken = "e018389e3827e1499e41d35e3c811283";
                 var miniFleetToken = "4002a42efaeb2808f6c232594fb09aa4";
                 var currentPage = "overview";
-                var bbcodePreviewUrl = "{{ route('overview.index') }}#TODO_page=bbcodePreview";
+                // BBCode preview is handled client-side with custom parser (buddyBBCodeParser)
+                // Empty string prevents CORS errors while custom handlers override the preview
+                var bbcodePreviewUrl = "";
                 var popupWindows = [];
                 var fleetDeutSaveFactor = 1;
                 var honorScore = 0;
@@ -662,7 +670,8 @@ Combat simulation save slots +20">
                 var ogameUrl = "{{ str_replace('/', '\/', URL::to('/')) }}";
                 var startpageUrl = "{{ str_replace('/', '\/', URL::to('/')) }}";
                 var nodePort = 19603;
-                var nodeUrl = "{{ route('overview.index') }}#TODO_19603\/socket.io\/socket.io.js";
+                // TODO: WebSocket/chat functionality not yet implemented. Disabled to prevent loading overview as a script.
+                // var nodeUrl = "{{ route('overview.index') }}#TODO_19603\/socket.io\/socket.io.js";
                 var nodeParams = {
                     "port": 19603,
                     "secure": "true"
@@ -771,8 +780,8 @@ Combat simulation save slots +20">
                             "classesListItem": ""
                         },
                         "darkmatter": {
-                            "amount": 22500,
-                            "tooltip": "Dark Matter|<table class=\"resourceTooltip\"><tr><th>Available:<\/th><td><span class=\"\">22,500<\/span><\/td><\/tr><tr><th>Purchased<\/th><td><span class=\"\">0<\/span><\/td><\/tr><tr><th>Found<\/th><td><span class=\"\">22,500<\/span><\/td><\/tr><\/table>",
+                            "amount": {!! $resources['darkmatter']['amount'] !!},
+                            "tooltip": "@lang('Dark Matter')|<table class=\"resourceTooltip\"><tr><th>@lang('Available'):<\/th><td><span class=\"\">{!! $resources['darkmatter']['amount_formatted'] !!}<\/span><\/td><\/tr><\/table>",
                             "classesListItem": "",
                             "classes": "overlay",
                             "link": "#TODO_page=payment",
@@ -1047,6 +1056,7 @@ Combat simulation save slots +20">
                     initOverview();
                     initBuffBar();
                     tabletInitOverviewAdvice();
+
                     ogame.chat.showPlayerList('#chatBarPlayerList .cb_playerlist_box');
                     ogame.chat.showPlayerList('#sideBar');
                     var initChatAsyncInterval = window.setInterval(initChatAsync, 100);
@@ -1137,7 +1147,11 @@ Combat simulation save slots +20">
                                            data-link="{{ $urlToPlanetWithUpdatedParam }}"
                                            href="{{ $urlToPlanetWithUpdatedParam }}"
                                            title="">
-                                            <span class="icon12px icon_wrench"></span>
+                                            @if ($planet->isDowngrading())
+                                                <span class="icon12px icon_wrench_red"></span>
+                                            @else
+                                                <span class="icon12px icon_wrench"></span>
+                                            @endif
                                         </a>
                                     @endif
 
@@ -1202,7 +1216,7 @@ Combat simulation save slots +20">
             <div class="cb_playerlist_box"
                  style="display:none;">
             </div>
-            <span class="onlineCount">@lang(':count Contact(s) online', ['count' => 0])</span>
+            <span class="onlineCount">@lang(':count Contact(s) online', ['count' => $onlineBuddiesCount])</span>
         </li>
     </ul><!-- END Chat Bar List -->
 </div>

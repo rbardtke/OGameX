@@ -3,6 +3,7 @@
 namespace OGame\GameMissions;
 
 use Exception;
+use OGame\Enums\FleetMissionStatus;
 use OGame\Enums\FleetSpeedType;
 use OGame\GameMessages\DebrisFieldHarvest;
 use OGame\GameMissions\Abstracts\GameMission;
@@ -12,6 +13,7 @@ use OGame\GameObjects\Models\Units\UnitCollection;
 use OGame\Models\Enums\PlanetType;
 use OGame\Models\FleetMission;
 use OGame\Models\Planet\Coordinate;
+use OGame\Models\Resources;
 use OGame\Services\DebrisFieldService;
 use OGame\Services\ObjectService;
 use OGame\Services\PlanetService;
@@ -22,12 +24,18 @@ class RecycleMission extends GameMission
     protected static int $typeId = 8;
     protected static bool $hasReturnMission = true;
     protected static FleetSpeedType $fleetSpeedType = FleetSpeedType::war;
+    protected static FleetMissionStatus $friendlyStatus = FleetMissionStatus::Neutral;
 
     /**
      * @inheritdoc
      */
     public function isMissionPossible(PlanetService $planet, Coordinate $targetCoordinate, PlanetType $targetType, UnitCollection $units): MissionPossibleStatus
     {
+        // Cannot send missions while in vacation mode
+        if ($planet->getPlayer()->isInVacationMode()) {
+            return new MissionPossibleStatus(false, 'You cannot send missions while in vacation mode!');
+        }
+
         // Recycle mission is only possible for debris fields.
         if ($targetType !== PlanetType::DebrisField) {
             return new MissionPossibleStatus(false);
@@ -38,12 +46,19 @@ class RecycleMission extends GameMission
             return new MissionPossibleStatus(false);
         }
 
-        // Check if debris field exists on the target coordinate.
+        // Check if debris field exists (including "ghost" fields with 0 resources).
+        // In OGame, debris fields persist as invisible "ghost" fields after being fully harvested
+        // until the weekly reset (Monday 1:00 AM). This allows players to send recyclers to
+        // coordinates where a debris field existed, even if it currently has no resources.
         $debrisField = app(DebrisFieldService::class);
         $debrisFieldExists = $debrisField->loadForCoordinates($targetCoordinate);
-        if (!$debrisFieldExists || !$debrisField->getResources()->any()) {
+
+        if (!$debrisFieldExists) {
             return new MissionPossibleStatus(false);
         }
+
+        // Note: Debris fields can be harvested regardless of whether the planet owner
+        // is in vacation mode. Only the sending player's vacation mode status is checked.
 
         // If all checks pass, the mission is possible.
         return new MissionPossibleStatus(true);
@@ -101,8 +116,15 @@ class RecycleMission extends GameMission
         $mission->save();
 
         // Create and start the return mission.
+        // Add parent mission resources to harvested resources.
         $units = $this->fleetMissionService->getFleetUnits($mission);
-        $this->startReturn($mission, $resourcesHarvested, $units);
+        $totalResources = new Resources(
+            $mission->metal + $resourcesHarvested->metal->get(),
+            $mission->crystal + $resourcesHarvested->crystal->get(),
+            $mission->deuterium + $resourcesHarvested->deuterium->get(),
+            0
+        );
+        $this->startReturn($mission, $totalResources, $units);
     }
 
     /**

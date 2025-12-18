@@ -2,6 +2,7 @@
 
 namespace OGame\GameMissions;
 
+use OGame\Enums\FleetMissionStatus;
 use OGame\Enums\FleetSpeedType;
 use OGame\GameMessages\TransportArrived;
 use OGame\GameMessages\TransportReceived;
@@ -20,12 +21,18 @@ class TransportMission extends GameMission
     protected static int $typeId = 3;
     protected static bool $hasReturnMission = true;
     protected static FleetSpeedType $fleetSpeedType = FleetSpeedType::peaceful;
+    protected static FleetMissionStatus $friendlyStatus = FleetMissionStatus::Neutral;
 
     /**
      * @inheritdoc
      */
     public function isMissionPossible(PlanetService $planet, Coordinate $targetCoordinate, PlanetType $targetType, UnitCollection $units): MissionPossibleStatus
     {
+        // Cannot send missions while in vacation mode
+        if ($planet->getPlayer()->isInVacationMode()) {
+            return new MissionPossibleStatus(false, 'You cannot send missions while in vacation mode!');
+        }
+
         // Transport mission is only possible for planets and moons.
         if (!in_array($targetType, [PlanetType::Planet, PlanetType::Moon])) {
             return new MissionPossibleStatus(false);
@@ -40,6 +47,12 @@ class TransportMission extends GameMission
         // If mission from and to coordinates and types are the same, the mission is not possible.
         if ($planet->getPlanetCoordinates()->equals($targetCoordinate) && $planet->getPlanetType() === $targetType) {
             return new MissionPossibleStatus(false);
+        }
+
+        // If target player is in vacation mode, the mission is not possible.
+        $targetPlayer = $targetPlanet->getPlayer();
+        if ($targetPlayer->isInVacationMode()) {
+            return new MissionPossibleStatus(false, 'This player is in vacation mode!');
         }
 
         // If all checks pass, the mission is possible.
@@ -82,6 +95,7 @@ class TransportMission extends GameMission
         $mission->save();
 
         // Create and start the return mission.
+        // Transport delivers all resources, so return with empty cargo.
         $units = $this->fleetMissionService->getFleetUnits($mission);
         $this->startReturn($mission, new Resources(0, 0, 0, 0), $units);
     }

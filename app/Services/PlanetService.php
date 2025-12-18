@@ -127,6 +127,50 @@ class PlanetService
     }
 
     /**
+     * Get the jump gate cooldown timestamp.
+     *
+     * @return int|null
+     */
+    public function getJumpGateCooldown(): int|null
+    {
+        return $this->planet->jump_gate_cooldown;
+    }
+
+    /**
+     * Set the jump gate cooldown timestamp.
+     *
+     * @param int|null $timestamp
+     * @return void
+     */
+    public function setJumpGateCooldown(int|null $timestamp): void
+    {
+        $this->planet->jump_gate_cooldown = $timestamp;
+        $this->planet->save();
+    }
+
+    /**
+     * Get the default jump gate target moon ID.
+     *
+     * @return int|null
+     */
+    public function getDefaultJumpGateTargetId(): int|null
+    {
+        return $this->planet->default_jump_gate_target_id;
+    }
+
+    /**
+     * Set the default jump gate target moon ID.
+     *
+     * @param int|null $moonId
+     * @return void
+     */
+    public function setDefaultJumpGateTargetId(int|null $moonId): void
+    {
+        $this->planet->default_jump_gate_target_id = $moonId;
+        $this->planet->save();
+    }
+
+    /**
      * Set the planet model directly. This is primarily used by unittests in order to mock the planet model.
      *
      * @param Planet $planet
@@ -751,6 +795,57 @@ class PlanetService
     }
 
     /**
+     * Gets the time required to downgrade a building on this planet by one level.
+     *
+     * @param string $machine_name
+     * @return int
+     * @throws Exception
+     */
+    public function getBuildingDowngradeTime(string $machine_name, int|null $target_level = null): int
+    {
+        $current_level = $this->getObjectLevel($machine_name);
+
+        // If target_level is provided, use it (for calculating downgrade time when upgrades are in queue)
+        // Otherwise, use current_level
+        $level_for_calculation = $target_level ?? $current_level;
+
+        // Cannot downgrade if already at level 0
+        if ($level_for_calculation <= 0) {
+            return 1;
+        }
+
+        // Get the price for the level (cost to build from level-1 to level)
+        $price = ObjectService::getObjectRawPrice($machine_name, $level_for_calculation);
+
+        $robotfactory_level = $this->getObjectLevel('robot_factory');
+        $nanitefactory_level = $this->getObjectLevel('nano_factory');
+        $universe_speed = $this->settingsService->economySpeed();
+
+        // Sanity check: if universe speed is 0, set it to 1 to prevent division by zero.
+        if ($universe_speed == 0) {
+            $universe_speed = 1;
+        }
+
+        // The actual formula which return time in seconds
+        // Same formula as construction time but for level instead of next_level
+        $time_hours =
+            (
+                ($price->metal->get() + $price->crystal->get())
+                /
+                (2500 * max((4 - ($level_for_calculation / 2)), 1) * (1 + $robotfactory_level) * $universe_speed * (2 ** $nanitefactory_level))
+            );
+
+        $time_seconds = (int)($time_hours * 3600);
+
+        // Minimum time is always 1 second for all objects/units.
+        if ($time_seconds < 1) {
+            $time_seconds = 1;
+        }
+
+        return $time_seconds;
+    }
+
+    /**
      * Gets the level of a building on this planet.
      *
      * @param string $machine_name
@@ -1021,6 +1116,13 @@ class PlanetService
         // NOTE: this issue can be circumvented with a continious job runner which can
         // update all planets periodically...
 
+        // If time_last_update is 0 or null, initialize it to current time to prevent
+        // calculating resources from epoch (1970) which would cause massive resource gain.
+        if ($time_last_update <= 0) {
+            $time_last_update = $current_time;
+            $this->planet->time_last_update = $current_time;
+        }
+
         if ($time_last_update < $current_time) {
             // Last updated time is in past, so update resources based on hourly
             // production.
@@ -1198,6 +1300,23 @@ class PlanetService
     }
 
     /**
+     * Returns the parent planet for this moon. If this is not a moon or no parent planet exists, returns null.
+     *
+     * @return PlanetService|null
+     */
+    public function getParentPlanet(): PlanetService|null
+    {
+        // Only moons have parent planets
+        if (!$this->isMoon()) {
+            return null;
+        }
+
+        // Get the planet at the same coordinates
+        $planetServiceFactory = resolve(\OGame\Factories\PlanetServiceFactory::class);
+        return $planetServiceFactory->makePlanetForCoordinate($this->getPlanetCoordinates());
+    }
+
+    /**
      * Returns true if the planet has a moon, false otherwise.
      *
      * @return bool
@@ -1247,6 +1366,11 @@ class PlanetService
      */
     public function updateBuildingQueue(bool $save_planet = true): void
     {
+        // Skip building queue processing if player is in vacation mode
+        if ($this->getPlayer()->isInVacationMode()) {
+            return;
+        }
+
         $queue = resolve(BuildingQueueService::class);
         $build_queue = $queue->retrieveFinished($this->getPlanetId());
 
@@ -1255,7 +1379,12 @@ class PlanetService
             $item->processed = 1;
             $item->save();
 
+            // Check if this is a downgrade
+            $is_downgrade = $item->is_downgrade ?? false;
+
             // Update planet and update level of the object (building) that has been processed.
+            // For downgrades, object_level_target is already current_level - 1, so we just set it.
+            // For upgrades, object_level_target is current_level + 1, so we set it.
             $this->setObjectLevel($item->object_id, $item->object_level_target, $save_planet);
 
             // Build the next item in queue (if there is any)
@@ -1307,6 +1436,11 @@ class PlanetService
      */
     public function updateUnitQueue(bool $save_planet = true): void
     {
+        // Skip unit queue processing if player is in vacation mode
+        if ($this->getPlayer()->isInVacationMode()) {
+            return;
+        }
+
         $queue = resolve(UnitQueueService::class);
         $unit_queue = $queue->retrieveBuilding($this->getPlanetId());
 
@@ -1475,6 +1609,11 @@ class PlanetService
             return new Resources(0, 0, 0, 0);
         }
 
+        // Players in vacation mode have zero basic income.
+        if ($this->getPlayer()->isInVacationMode()) {
+            return new Resources(0, 0, 0, 0);
+        }
+
         $universe_resource_multiplier = $this->settingsService->economySpeed();
 
         $baseIncome = new Resources(
@@ -1616,9 +1755,10 @@ class PlanetService
         $production_total->add($building_production_total);
 
         // Write values to planet.
-        $this->planet->metal_production     = (int) $production_total->metal->get();
-        $this->planet->crystal_production   = (int) $production_total->crystal->get();
-        $this->planet->deuterium_production = (int) $production_total->deuterium->get();
+        // Use ceil() for positive production to match getObjectProduction() rounding
+        $this->planet->metal_production     = (int) ceil($production_total->metal->get());
+        $this->planet->crystal_production   = (int) ceil($production_total->crystal->get());
+        $this->planet->deuterium_production = (int) ceil($production_total->deuterium->get());
     }
 
     /**
@@ -1788,6 +1928,24 @@ class PlanetService
     }
 
     /**
+     * Check if the planet is currently downgrading a building.
+     *
+     * @return bool
+     */
+    public function isDowngrading(): bool
+    {
+        $queue = resolve(BuildingQueueService::class);
+        $build_queue = $queue->retrieveQueue($this);
+        $currently_building = $build_queue->getCurrentlyBuildingFromQueue();
+
+        if ($currently_building !== null) {
+            return $currently_building->is_downgrade ?? false;
+        }
+
+        return false;
+    }
+
+    /**
      * Get is the current planet building the object or not
      *
      * @return bool
@@ -1810,13 +1968,22 @@ class PlanetService
     }
 
     /**
-     * Get building count from planet
+     * Get building count from planet (number of fields used by buildings)
      *
      * @return int
      */
     public function getBuildingCount(): int
     {
-        return collect($this->getBuildingArray())->sum();
+        $count = 0;
+        $objects = [...ObjectService::getBuildingObjects(), ...ObjectService::getStationObjects()];
+        foreach ($objects as $object) {
+            // Only count buildings that consume planet fields
+            if ($object->consumesPlanetField && $this->planet->{$object->machine_name} > 0) {
+                $count += $this->planet->{$object->machine_name};
+            }
+        }
+
+        return $count;
     }
 
     /**
@@ -1928,10 +2095,10 @@ class PlanetService
         // Create object array
         $building_objects = array_merge(ObjectService::getBuildingObjects(), ObjectService::getStationObjects());
         foreach ($building_objects as $object) {
-            for ($i = 1; $i <= $this->getObjectLevel($object->machine_name); $i++) {
-                // Concatenate price which is array of metal, crystal and deuterium.
-                $raw_price = ObjectService::getObjectRawPrice($object->machine_name, $i);
-                $resources_spent->add($raw_price);
+            $level = $this->getObjectLevel($object->machine_name);
+            if ($level > 0) {
+                $cumulative_cost = ObjectService::getObjectCumulativeCost($object->machine_name, $level);
+                $resources_spent->add($cumulative_cost);
             }
         }
         $unit_objects = array_merge(ObjectService::getShipObjects(), ObjectService::getDefenseObjects());
@@ -1988,10 +2155,10 @@ class PlanetService
         // Buildings (100%)
         $building_objects = [ ...ObjectService::getBuildingObjects(), ...ObjectService::getStationObjects() ];
         foreach ($building_objects as $object) {
-            for ($i = 1; $i <= $this->getObjectLevel($object->machine_name); $i++) {
-                // Concatenate price which is array of metal, crystal and deuterium.
-                $raw_price = ObjectService::getObjectRawPrice($object->machine_name, $i);
-                $resources_spent += $raw_price->sum();
+            $level = $this->getObjectLevel($object->machine_name);
+            if ($level > 0) {
+                $cumulative_cost = ObjectService::getObjectCumulativeCost($object->machine_name, $level);
+                $resources_spent += $cumulative_cost->sum();
             }
         }
 

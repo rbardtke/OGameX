@@ -29,6 +29,8 @@ class OptionsController extends OGameController
             'username' => $player->getUsername(),
             'current_email' => $player->getEmail(),
             'canUpdateUsername' => $canUpdateUsername,
+            'player' => $player,
+            'espionage_probes_amount' => $player->getEspionageProbesAmount(),
         ]);
     }
 
@@ -41,7 +43,7 @@ class OptionsController extends OGameController
      * @return array<string,string>
      * @throws Exception
      */
-    public function processChangeUsername(Request $request, PlayerService $player): array
+    public function processChangeUsername(Request $request, PlayerService $player): array|null
     {
         $name = $request->input('new_username_username');
         if (!empty($name)) {
@@ -54,7 +56,84 @@ class OptionsController extends OGameController
             // Update username
             $player->setUsername($name);
             $player->save();
+
+            return array('success' => __('Settings saved'));
         }
+
+        return array();
+    }
+
+    /**
+     * Process vacation mode activation/deactivation request.
+     *
+     * @param Request $request
+     * @param PlayerService $player
+     *
+     * @return array<string,string>
+     */
+    public function processVacationMode(Request $request, PlayerService $player): array
+    {
+        $vacationModeChecked = $request->has('urlaubs_modus');
+
+        // If player is currently in vacation mode
+        if ($player->isInVacationMode()) {
+            // Player wants to deactivate vacation mode
+            if (!$vacationModeChecked) {
+                if ($player->canDeactivateVacationMode()) {
+                    $player->deactivateVacationMode();
+                    return array('success' => __('Vacation mode has been deactivated.'));
+                } else {
+                    return array('error' => __('You can only deactivate vacation mode after the minimum duration of 48 hours has passed.'));
+                }
+            }
+            // If checkbox is still checked while in vacation mode, do nothing
+            return array();
+        } else {
+            // Player is not in vacation mode and wants to activate it
+            if ($vacationModeChecked) {
+                if ($player->canActivateVacationMode()) {
+                    $player->activateVacationMode();
+                    return array('success' => __('Vacation mode has been activated. It will protect you from new attacks for a minimum of 48 hours.'));
+                } else {
+                    return array('error' => __('You cannot activate vacation mode while you have fleets in transit.'));
+                }
+            }
+        }
+
+        return array();
+    }
+
+    /**
+     * Process espionage probes amount save request.
+     *
+     * @param Request $request
+     * @param PlayerService $player
+     * @return array<string,string>|null
+     */
+    public function processEspionageProbesAmount(Request $request, PlayerService $player): array|null
+    {
+        // Only process if the field is present in the request
+        if (!array_key_exists('espionage_probes_amount', $request->all())) {
+            return null;
+        }
+
+        $amount = $request->input('espionage_probes_amount');
+
+        // Allow empty string to clear the setting
+        if ($amount === '' || $amount === null) {
+            $player->setEspionageProbesAmount(null);
+            $player->save();
+            return array('success' => __('Settings saved'));
+        }
+
+        // Validate that it's a positive integer
+        $amount = (int) $amount;
+        if ($amount < 1) {
+            return array('error' => __('Espionage probes amount must be at least 1'));
+        }
+
+        $player->setEspionageProbesAmount($amount);
+        $player->save();
 
         return array('success' => __('Settings saved'));
     }
@@ -70,7 +149,9 @@ class OptionsController extends OGameController
     {
         // Define change handlers.
         $change_handlers = [
-            'processChangeUsername'
+            'processChangeUsername',
+            'processVacationMode',
+            'processEspionageProbesAmount'
         ];
 
         // Loop through change handlers, execute them and if it triggers

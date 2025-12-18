@@ -19,6 +19,7 @@ use OGame\Http\Controllers\NotesController;
 use OGame\Http\Controllers\OptionsController;
 use OGame\Http\Controllers\OverviewController;
 use OGame\Http\Controllers\PaymentController;
+use OGame\Http\Controllers\JumpGateController;
 use OGame\Http\Controllers\PhalanxController;
 use OGame\Http\Controllers\PlanetAbandonController;
 use OGame\Http\Controllers\PlanetMoveController;
@@ -57,13 +58,15 @@ Route::middleware(['auth', 'globalgame', 'locale'])->group(function () {
     Route::get('/ajax/resources', [ResourcesController::class, 'ajax'])->name('resources.ajax');
     Route::get('/resources/add-buildrequest', [ResourcesController::class, 'addBuildRequest'])->name('resources.addbuildrequest');
     Route::post('/resources/add-buildrequest', [ResourcesController::class, 'addBuildRequest'])->name('resources.addbuildrequest.post');
+    Route::post('/resources/downgrade', [ResourcesController::class, 'downgradeBuildRequest'])->name('resources.downgrade');
     Route::post('/resources/cancel-buildrequest', [ResourcesController::class, 'cancelBuildRequest'])->name('resources.cancelbuildrequest');
 
     // Facilities
     Route::get('/facilities', [FacilitiesController::class, 'index'])->name('facilities.index');
     Route::get('/ajax/facilities', [FacilitiesController::class, 'ajax'])->name('facilities.ajax');
     Route::get('/facilities/add-buildrequest', [FacilitiesController::class, 'addBuildRequest'])->name('facilities.addbuildrequest');
-    Route::post('/facilities/add-buildrequest', [FacilitiesController::class, 'addBuildRequest'])->name('facilities.addbuildrequest.get');
+    Route::post('/facilities/add-buildrequest', [FacilitiesController::class, 'addBuildRequest'])->name('facilities.addbuildrequest.post');
+    Route::post('/facilities/downgrade', [FacilitiesController::class, 'downgradeBuildRequest'])->name('facilities.downgrade');
     Route::post('/facilities/cancel-buildrequest', [FacilitiesController::class, 'cancelBuildRequest'])->name('facilities.cancelbuildrequest');
 
     // Research
@@ -105,6 +108,11 @@ Route::middleware(['auth', 'globalgame', 'locale'])->group(function () {
     // Phalanx
     Route::post('/ajax/phalanx/scan', [PhalanxController::class, 'scan'])->name('phalanx.scan');
 
+    // Jump Gate
+    Route::get('/ajax/jumpgate', [JumpGateController::class, 'index'])->name('jumpgate.index');
+    Route::post('/ajax/jumpgate/execute', [JumpGateController::class, 'executeJump'])->name('jumpgate.execute');
+    Route::post('/ajax/jumpgate/set-default-target', [JumpGateController::class, 'setDefaultTarget'])->name('jumpgate.setdefaulttarget');
+
     // Messages
     Route::get('/messages', [MessagesController::class, 'index'])->name('messages.index');
     // For handling message delete requests
@@ -116,6 +124,14 @@ Route::middleware(['auth', 'globalgame', 'locale'])->group(function () {
 
     // Misc
     Route::get('/merchant', [MerchantController::class, 'index'])->name('merchant.index');
+    Route::get('/merchant/resource-market', [MerchantController::class, 'resourceMarket'])->name('merchant.resource-market');
+    Route::get('/merchant/market/{type}', [MerchantController::class, 'showMarket'])->name('merchant.market');
+    Route::post('/merchant/call', [MerchantController::class, 'callMerchant'])->name('merchant.call');
+    Route::post('/merchant/trade', [MerchantController::class, 'executeTrade'])->name('merchant.trade');
+    Route::post('/merchant/dismiss', [MerchantController::class, 'dismissMerchant'])->name('merchant.dismiss');
+    Route::get('/merchant/scrap', [MerchantController::class, 'scrap'])->name('merchant.scrap');
+    Route::post('/merchant/scrap/bargain', [MerchantController::class, 'scrapBargain'])->name('merchant.scrap.bargain');
+    Route::post('/merchant/scrap/execute', [MerchantController::class, 'scrapExecute'])->name('merchant.scrap.execute');
 
     Route::get('/alliance', [AllianceController::class, 'index'])->name('alliance.index');
     Route::get('/ajax/alliance/create', [AllianceController::class, 'ajaxCreate'])->name('alliance.ajax.create');
@@ -130,6 +146,13 @@ Route::middleware(['auth', 'globalgame', 'locale'])->group(function () {
     Route::post('/ajax/highscore', [HighscoreController::class, 'ajax'])->name('highscore.ajax');
 
     Route::get('/buddies', [BuddiesController::class, 'index'])->name('buddies.index');
+    Route::post('/buddies', [BuddiesController::class, 'post'])->name('buddies.post');
+    Route::get('/buddies/request-dialog', [BuddiesController::class, 'showRequestDialog'])->name('buddies.requestdialog');
+    Route::post('/buddies/send-request', [BuddiesController::class, 'sendRequest'])->name('buddies.sendrequest');
+    Route::post('/buddies/ignore', [BuddiesController::class, 'ignorePlayer'])->name('buddies.ignore');
+    Route::post('/buddies/unignore', [BuddiesController::class, 'unignorePlayer'])->name('buddies.unignore');
+    Route::get('/buddies/online', [BuddiesController::class, 'getOnlineBuddies'])->name('buddies.online');
+
     Route::get('/rewards', [RewardsController::class, 'index'])->name('rewards.index');
     Route::get('/planet-move', [PlanetMoveController::class, 'index'])->name('planetMove.index');
 

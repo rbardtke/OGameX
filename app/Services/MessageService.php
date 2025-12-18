@@ -204,6 +204,30 @@ class MessageService
     }
 
     /**
+     * Sends a fleet lost contact message to a player.
+     *
+     * @param PlayerService $player
+     * @param string $coordinates
+     * @return Message The created message.
+     */
+    public function sendFleetLostContactMessageToPlayer(PlayerService $player, string $coordinates): Message
+    {
+        try {
+            $gameMessage = resolve(\OGame\GameMessages\FleetLostContact::class);
+        } catch (Exception) {
+            throw new RuntimeException('Could not create fleet lost contact message.');
+        }
+
+        $message = new Message();
+        $message->user_id = $player->getId();
+        $message->key = $gameMessage->getKey();
+        $message->params = ['coordinates' => $coordinates];
+        $message->save();
+
+        return $message;
+    }
+
+    /**
      * Sends a welcome message to the current player.
      *
      * @return void
@@ -326,5 +350,76 @@ class MessageService
         Message::where('id', $messageId)
             ->where('user_id', $this->player->getId())
             ->delete();
+    }
+
+    /**
+     * Get an individual message with pagination context for navigation in full screen overlay.
+     *
+     * @param int $messageId
+     * @param string|null $tab
+     * @param string|null $subtab
+     * @return array{message: GameMessage, pagination: array{currentIndex: int, totalCount: int, firstId: int|null, prevId: int|null, nextId: int|null, lastId: int|null, tab: string, subtab: string}}
+     */
+    public function getMessagePaginationContext(int $messageId, string|null $tab = null, string|null $subtab = null): array
+    {
+        // Get the current message first
+        $currentMessage = Message::where('id', $messageId)
+            ->where('user_id', $this->player->getId())
+            ->first();
+
+        if ($currentMessage === null) {
+            throw new RuntimeException('Message not found.');
+        }
+
+        // If tab/subtab not provided, determine from the message key
+        $gameMessage = GameMessageFactory::createGameMessage($currentMessage);
+        if ($tab === null) {
+            $tab = $gameMessage->getTab();
+        }
+        if ($subtab === null) {
+            $subtab = $gameMessage->getSubtab();
+        }
+
+        // Get all message IDs for this subtab, ordered by created_at DESC then id DESC (newest first, consistent ordering)
+        $messageKeys = GameMessageFactory::GetGameMessageKeysByTab($tab, $subtab);
+        $allMessageIds = Message::where('user_id', $this->player->getId())
+            ->whereIn('key', $messageKeys)
+            ->orderBy('created_at', 'desc')
+            ->pluck('id')
+            ->toArray();
+
+        $totalCount = count($allMessageIds);
+        $currentIndexRaw = array_search($messageId, $allMessageIds, true);
+
+        // If message not found in the list (shouldn't happen), default to first position
+        if ($currentIndexRaw === false) {
+            $currentIndexRaw = 0;
+        }
+
+        $currentIndex = (int) $currentIndexRaw;
+
+        // Calculate navigation IDs (1-based index for display)
+        $firstId = $totalCount > 0 ? $allMessageIds[0] : null;
+        $lastId = $totalCount > 0 ? $allMessageIds[$totalCount - 1] : null;
+        $prevId = $currentIndex > 0 ? $allMessageIds[$currentIndex - 1] : null;
+        $nextId = ($currentIndex < ($totalCount - 1)) ? $allMessageIds[$currentIndex + 1] : null;
+
+        // Mark the current message as viewed
+        $currentMessage->viewed = 1;
+        $currentMessage->save();
+
+        return [
+            'message' => $gameMessage,
+            'pagination' => [
+                'currentIndex' => $currentIndex + 1, // 1-based for display
+                'totalCount' => $totalCount,
+                'firstId' => $firstId,
+                'prevId' => $prevId,
+                'nextId' => $nextId,
+                'lastId' => $lastId,
+                'tab' => $tab,
+                'subtab' => $subtab,
+            ],
+        ];
     }
 }

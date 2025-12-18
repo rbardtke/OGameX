@@ -2,17 +2,20 @@
 
 namespace OGame\GameMissions;
 
+use OGame\Enums\FleetMissionStatus;
 use OGame\Enums\FleetSpeedType;
 use OGame\GameMissions\Abstracts\GameMission;
 use OGame\GameMissions\BattleEngine\Models\BattleResult;
 use OGame\GameMissions\BattleEngine\PhpBattleEngine;
 use OGame\GameMissions\BattleEngine\RustBattleEngine;
+use OGame\GameMissions\BattleEngine\Services\LootService;
 use OGame\GameMissions\Models\MissionPossibleStatus;
 use OGame\GameObjects\Models\Units\UnitCollection;
 use OGame\Models\BattleReport;
 use OGame\Models\Enums\PlanetType;
 use OGame\Models\FleetMission;
 use OGame\Models\Planet\Coordinate;
+use OGame\Models\Resources;
 use OGame\Services\DebrisFieldService;
 use OGame\Services\PlanetService;
 use OGame\Services\PlayerService;
@@ -24,12 +27,18 @@ class AttackMission extends GameMission
     protected static int $typeId = 1;
     protected static bool $hasReturnMission = true;
     protected static FleetSpeedType $fleetSpeedType = FleetSpeedType::war;
+    protected static FleetMissionStatus $friendlyStatus = FleetMissionStatus::Hostile;
 
     /**
      * @inheritdoc
      */
     public function isMissionPossible(PlanetService $planet, Coordinate $targetCoordinate, PlanetType $targetType, UnitCollection $units): MissionPossibleStatus
     {
+        // Cannot send missions while in vacation mode
+        if ($planet->getPlayer()->isInVacationMode()) {
+            return new MissionPossibleStatus(false, 'You cannot send missions while in vacation mode!');
+        }
+
         // Attack mission is only possible for planets and moons.
         if (!in_array($targetType, [PlanetType::Planet, PlanetType::Moon])) {
             return new MissionPossibleStatus(false);
@@ -49,6 +58,12 @@ class AttackMission extends GameMission
         // If mission from and to coordinates and types are the same, the mission is not possible.
         if ($planet->getPlanetCoordinates()->equals($targetCoordinate) && $planet->getPlanetType() === $targetType) {
             return new MissionPossibleStatus(false);
+        }
+
+        // If target player is in vacation mode, the mission is not possible.
+        $targetPlayer = $targetPlanet->getPlayer();
+        if ($targetPlayer->isInVacationMode()) {
+            return new MissionPossibleStatus(false, 'This player is in vacation mode!');
         }
 
         // If all checks pass, the mission is possible.
@@ -87,10 +102,15 @@ class AttackMission extends GameMission
         // Deduct loot from the target planet.
         $defenderPlanet->deductResources($battleResult->loot);
 
-        // Deduct defender's lost units from the defenders planet.
+        // Deduct defender's permanently lost units from the defenders planet.
+        // Repaired defenses are not removed (destroyed - repaired = permanently lost).
         $defenderUnitsLost = clone $battleResult->defenderUnitsStart;
         $defenderUnitsLost->subtractCollection($battleResult->defenderUnitsResult);
-        $defenderPlanet->removeUnits($defenderUnitsLost, false);
+
+        // Calculate permanently lost units (destroyed - repaired)
+        $permanentlyLostUnits = clone $defenderUnitsLost;
+        $permanentlyLostUnits->subtractCollection($battleResult->repairedDefenses);
+        $defenderPlanet->removeUnits($permanentlyLostUnits, false);
 
         // Save defenders planet
         $defenderPlanet->save();
@@ -108,8 +128,10 @@ class AttackMission extends GameMission
         $debrisFieldService->save();
 
         // Create a moon for defender if result of battle indicates so and defender planet does not already have a moon.
-        if (!$defenderPlanet->hasMoon() && $battleResult->moonCreated) {
-            $this->planetServiceFactory->createMoonForPlanet($defenderPlanet);
+        // Only create moon if defender is a planet (not already a moon).
+        if ($defenderPlanet->isPlanet() && !$defenderPlanet->hasMoon() && $battleResult->moonCreated) {
+            $debrisAmount = (int)$battleResult->debris->sum();
+            $this->planetServiceFactory->createMoonForPlanet($defenderPlanet, $debrisAmount, $battleResult->moonChance);
         }
 
         // Check if attacker fleet was destroyed in first round
@@ -145,7 +167,46 @@ class AttackMission extends GameMission
         $mission->save();
 
         // Create and start the return mission (if attacker has remaining units).
-        $this->startReturn($mission, $battleResult->loot, $battleResult->attackerUnitsResult);
+        // Calculate survival rate based on cargo capacity before and after battle
+        $originalCargoCapacity = $battleResult->attackerUnitsStart->getTotalCargoCapacity($attackerPlayer);
+        $remainingCargoCapacity = $battleResult->attackerUnitsResult->getTotalCargoCapacity($attackerPlayer);
+
+        // Handle edge case: if original capacity is 0, survival rate is 0
+        $survivalRate = $originalCargoCapacity > 0
+            ? $remainingCargoCapacity / $originalCargoCapacity
+            : 0;
+
+        // Calculate resources remaining on surviving ships
+        $remainingResources = new Resources(
+            max(0, (int)($mission->metal * $survivalRate)),
+            max(0, (int)($mission->crystal * $survivalRate)),
+            max(0, (int)($mission->deuterium * $survivalRate)),
+            0
+        );
+
+        // Calculate loot remaining on surviving ships
+        // Loot is also subject to the survival rate (if cargo ships carrying loot are destroyed, loot is lost)
+        $remainingLoot = new Resources(
+            max(0, (int)($battleResult->loot->metal->get() * $survivalRate)),
+            max(0, (int)($battleResult->loot->crystal->get() * $survivalRate)),
+            max(0, (int)($battleResult->loot->deuterium->get() * $survivalRate)),
+            0
+        );
+
+        // Total resources = remaining mission resources + remaining loot
+        $totalResources = new Resources(
+            $remainingResources->metal->get() + $remainingLoot->metal->get(),
+            $remainingResources->crystal->get() + $remainingLoot->crystal->get(),
+            $remainingResources->deuterium->get() + $remainingLoot->deuterium->get(),
+            0
+        );
+
+        // Ensure total doesn't exceed remaining capacity
+        if ($totalResources->sum() > $remainingCargoCapacity) {
+            $totalResources = LootService::distributeLoot($totalResources, $remainingCargoCapacity);
+        }
+
+        $this->startReturn($mission, $totalResources, $battleResult->attackerUnitsResult);
     }
 
     /**
@@ -229,7 +290,7 @@ class AttackMission extends GameMission
             'deuterium' => $battleResult->debris->deuterium->get(),
         ];
 
-        $report->repaired_defenses = [];
+        $report->repaired_defenses = $battleResult->repairedDefenses->toArray();
 
         $rounds = [];
         foreach ($battleResult->rounds as $round) {

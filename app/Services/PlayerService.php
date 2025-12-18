@@ -140,6 +140,16 @@ class PlayerService
     }
 
     /**
+     * Get the user model instance.
+     *
+     * @return User
+     */
+    public function getUser(): User
+    {
+        return $this->user;
+    }
+
+    /**
      * Saves current player object to DB.
      */
     public function save(): void
@@ -364,6 +374,26 @@ class PlayerService
     }
 
     /**
+     * Get espionage probes amount preference.
+     *
+     * @return int|null
+     */
+    public function getEspionageProbesAmount(): int|null
+    {
+        return $this->user->espionage_probes_amount;
+    }
+
+    /**
+     * Set espionage probes amount preference.
+     *
+     * @param int|null $amount
+     */
+    public function setEspionageProbesAmount(int|null $amount): void
+    {
+        $this->user->espionage_probes_amount = $amount;
+    }
+
+    /**
      * Gets the level of a research technology for this player.
      *
      * @param string $machine_name
@@ -552,6 +582,11 @@ class PlayerService
      */
     public function updateResearchQueue(bool $save_user = true): void
     {
+        // Skip research queue processing if player is in vacation mode
+        if ($this->isInVacationMode()) {
+            return;
+        }
+
         $queue = resolve(ResearchQueueService::class);
         $research_queue = $queue->retrieveFinishedForUser($this);
 
@@ -652,10 +687,10 @@ class PlayerService
         // Create object array
         $research_objects = ObjectService::getResearchObjects();
         foreach ($research_objects as $object) {
-            for ($i = 1; $i <= $this->getResearchLevel($object->machine_name); $i++) {
-                // Concatenate price which is array of metal, crystal and deuterium.
-                $raw_price = ObjectService::getObjectRawPrice($object->machine_name, $i);
-                $resources_spent->add($raw_price);
+            $level = $this->getResearchLevel($object->machine_name);
+            if ($level > 0) {
+                $cumulative_cost = ObjectService::getObjectCumulativeCost($object->machine_name, $level);
+                $resources_spent->add($cumulative_cost);
             }
         }
 
@@ -848,5 +883,105 @@ class PlayerService
             && $this->hasEngineer()
             && $this->hasGeologist()
             && $this->hasTechnocrat();
+    }
+
+    public function getDarkMatter(): int
+    {
+        return $this->user->dark_matter ?? 0;
+    }
+
+    /**
+     * Checks if the player is in vacation mode.
+     *
+     * @return bool
+     */
+    public function isInVacationMode(): bool
+    {
+        return (bool)$this->user->vacation_mode;
+    }
+
+    /**
+     * Checks if the player can activate vacation mode.
+     * Vacation mode can only be activated if no fleets are in transit.
+     *
+     * @return bool
+     */
+    public function canActivateVacationMode(): bool
+    {
+        // Check if player has any active fleet missions sent by themselves
+        $fleetMissionService = resolve(FleetMissionService::class, ['player' => $this]);
+        $activeFleetMissions = $fleetMissionService->getActiveFleetMissionsSentByCurrentPlayer();
+
+        return $activeFleetMissions->isEmpty();
+    }
+
+    /**
+     * Checks if the player can deactivate vacation mode.
+     * Vacation mode can only be deactivated after the minimum duration (48 hours).
+     *
+     * @return bool
+     */
+    public function canDeactivateVacationMode(): bool
+    {
+        if (!$this->isInVacationMode()) {
+            return false;
+        }
+
+        if ($this->user->vacation_mode_until === null) {
+            return false;
+        }
+
+        return now()->greaterThanOrEqualTo($this->user->vacation_mode_until);
+    }
+
+    /**
+     * Get the date when vacation mode can be deactivated.
+     *
+     * @return \Illuminate\Support\Carbon|null
+     */
+    public function getVacationModeUntil(): \Illuminate\Support\Carbon|null
+    {
+        return $this->user->vacation_mode_until;
+    }
+
+    /**
+     * Activates vacation mode for the player.
+     * Sets all mine production percentages to 0 across all planets.
+     *
+     * @return void
+     */
+    public function activateVacationMode(): void
+    {
+        $this->user->vacation_mode = true;
+        $this->user->vacation_mode_activated_at = now();
+        // Minimum duration: 48 hours
+        $this->user->vacation_mode_until = now()->addHours(48);
+        $this->save();
+
+        // Set all production percentages to 0 for all player's planets
+        $productionBuildings = ['metal_mine', 'crystal_mine', 'deuterium_synthesizer', 'solar_plant', 'fusion_plant', 'solar_satellite'];
+        foreach ($this->planets->allPlanets() as $planet) {
+            foreach ($productionBuildings as $buildingName) {
+                $building = ObjectService::getObjectByMachineName($buildingName);
+                $planet->setBuildingPercent($building->id, 0);
+            }
+        }
+    }
+
+    /**
+     * Deactivates vacation mode for the player.
+     * Production percentages remain at 0 and must be manually reset by the player.
+     *
+     * @return void
+     */
+    public function deactivateVacationMode(): void
+    {
+        $this->user->vacation_mode = false;
+        $this->user->vacation_mode_activated_at = null;
+        $this->user->vacation_mode_until = null;
+        $this->save();
+
+        // Note: Production percentages are intentionally left at 0.
+        // Players must manually reset mine production to 100% after vacation mode ends.
     }
 }

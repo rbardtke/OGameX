@@ -115,9 +115,9 @@ class BattleReport extends GameMessage
      */
     public function getFooterDetails(): string
     {
-        // Show more details link in the footer of the espionage report.
+        // Show more details link in the footer of the battle report.
         return ' <a class="fright txt_link msg_action_link overlay"
-                   href="' . route('messages.ajax.getmessage', ['messageId' => $this->message->id])  .'"
+                   href="' . $this->getFullMessageUrl() . '"
                    data-overlay-title="More details">
                     More details
                 </a>';
@@ -191,9 +191,13 @@ class BattleReport extends GameMessage
         $debrisRecyclersNeeded = $debrisFieldService->calculateRequiredRecyclers();
 
         $repairedDefensesCount = 0;
+        $repairedDefenses = new UnitCollection();
         if (!empty($this->battleReportModel->repaired_defenses)) {
             foreach ($this->battleReportModel->repaired_defenses as $defense_key => $defense_count) {
                 $repairedDefensesCount += $defense_count;
+                if ($defense_count > 0) {
+                    $repairedDefenses->addUnit(ObjectService::getUnitObjectByMachineName($defense_key), $defense_count);
+                }
             }
         }
 
@@ -310,6 +314,7 @@ class BattleReport extends GameMessage
             'debris_resources' => $debrisResources,
             'debris_recyclers_needed' => $debrisRecyclersNeeded,
             'repaired_defenses_count' => $repairedDefensesCount,
+            'repaired_defenses' => $repairedDefenses,
             'moon_existed' => $moonExisted,
             'moon_chance' => $moonChance,
             'moon_created' => $moonCreated,

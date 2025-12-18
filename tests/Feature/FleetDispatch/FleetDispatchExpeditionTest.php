@@ -263,6 +263,73 @@ class FleetDispatchExpeditionTest extends FleetDispatchTestCase
     }
 
     /**
+     * Test that expedition return mission timing correctly includes holding time.
+     * This verifies the fix for the bug where return trips would complete instantly
+     * because the start time was set to parent arrival instead of parent arrival + holding time.
+     *
+     * @return void
+     */
+    public function testExpeditionReturnMissionTimingIncludesHoldingTime(): void
+    {
+        $this->basicSetup();
+
+        // Enable only the "failed" expedition outcome to avoid delay/speedup complications.
+        $this->settingsEnableExpeditionOutcomes([ExpeditionOutcomeType::Failed]);
+
+        // Send the expedition mission.
+        $this->sendTestExpedition(true);
+
+        // Get the parent mission.
+        $fleetMissionService = resolve(FleetMissionService::class, ['player' => $this->planetService->getPlayer()]);
+        $parentMission = $fleetMissionService->getActiveFleetMissionsForCurrentPlayer()->first();
+
+        // Verify the parent mission has holding time set (expeditions should have at least 1 hour).
+        $this->assertGreaterThan(0, $parentMission->time_holding, 'Expedition mission should have holding time set');
+        $this->assertGreaterThanOrEqual(3600, $parentMission->time_holding, 'Expedition holding time should be at least 1 hour (3600 seconds)');
+
+        // Calculate expected return mission start time (parent arrival + holding time).
+        $expectedReturnStartTime = $parentMission->time_arrival + $parentMission->time_holding;
+        $parentMissionId = $parentMission->id;
+        $travelTime = $parentMission->time_arrival - $parentMission->time_departure;
+        $holdingTime = $parentMission->time_holding;
+
+        // Advance time to expedition arrival + holding time + 1 second to ensure arrival is fully processed.
+        // This ensures the expedition has completed and return mission has been created.
+        $this->travel($travelTime + $holdingTime + 1)->seconds();
+
+        // Trigger update to process the arrival and create the return mission.
+        $this->get('/overview');
+
+        // Reload service to get updated missions.
+        $fleetMissionService = resolve(FleetMissionService::class, ['player' => $this->planetService->getPlayer()]);
+
+        // Get the return mission that should have been created.
+        $returnMission = $fleetMissionService->getFleetMissionByParentId($parentMissionId, false);
+
+        // Verify return mission was created.
+        $this->assertNotNull($returnMission, 'Return mission should be created after expedition arrival');
+
+        // Verify return mission start time equals parent arrival + holding time.
+        // This is the key assertion - the return mission should start AFTER the holding time.
+        $this->assertEquals(
+            $expectedReturnStartTime,
+            $returnMission->time_departure,
+            'Return mission start time should equal parent arrival + holding time (not just arrival time)'
+        );
+
+        // Verify return mission arrival time is calculated correctly.
+        $expectedReturnArrivalTime = $expectedReturnStartTime + ($parentMission->time_arrival - $parentMission->time_departure);
+        $this->assertEquals(
+            $expectedReturnArrivalTime,
+            $returnMission->time_arrival,
+            'Return mission arrival time should be calculated from the correct start time'
+        );
+
+        // Verify return mission is not processed (not auto-completed).
+        $this->assertEquals(0, $returnMission->processed, 'Return mission should not be auto-completed immediately after creation');
+    }
+
+    /**
      * Send an expedition mission with high player points expecting large resource gain.
      *
      * @return void
@@ -573,6 +640,217 @@ class FleetDispatchExpeditionTest extends FleetDispatchTestCase
         $unitCollection = new UnitCollection();
         $unitCollection->addUnit(ObjectService::getUnitObjectByMachineName('large_cargo'), 1000);
         $this->sendMissionToPosition16($unitCollection, new Resources(1, 1, 0, 0), $assertStatus);
+    }
+
+    /**
+     * Test that resources sent with expedition are preserved when nothing is found.
+     */
+    public function testExpeditionPreservesOriginalResources(): void
+    {
+        $this->basicSetup();
+
+        // Add resources to the planet
+        $this->planetAddResources(new Resources(500000, 300000, 200000, 0));
+
+        // Record initial resources
+        $initialMetal = $this->planetService->metal()->get();
+        $initialCrystal = $this->planetService->crystal()->get();
+        $initialDeuterium = $this->planetService->deuterium()->get();
+
+        // Resources to send with the expedition (fleetsave scenario)
+        $resourcesToSend = new Resources(100000, 50000, 10000, 0);
+
+        // Send expedition with resources
+        $unitCollection = new UnitCollection();
+        $unitCollection->addUnit(ObjectService::getUnitObjectByMachineName('large_cargo'), 100);
+
+        // Enable only the "nothing found" outcome to ensure no additional resources are gained
+        $this->settingsEnableExpeditionOutcomes([ExpeditionOutcomeType::Failed]);
+
+        $this->sendMissionToPosition16($unitCollection, $resourcesToSend, true);
+
+        // Get the mission ID
+        $fleetMissionService = resolve(FleetMissionService::class);
+        $activeMissions = $fleetMissionService->getActiveFleetMissionsForCurrentPlayer();
+        $this->assertCount(1, $activeMissions, 'Expedition mission not created');
+        $fleetMissionId = $activeMissions->first()->id;
+
+        // Verify resources were deducted from planet (including fuel)
+        $this->get('/overview');
+        $this->planetService->reloadPlanet();
+        $afterDispatchMetal = $this->planetService->metal()->get();
+        $afterDispatchCrystal = $this->planetService->crystal()->get();
+        $afterDispatchDeuterium = $this->planetService->deuterium()->get();
+
+        $this->assertLessThan($initialMetal, $afterDispatchMetal, 'Metal should be deducted after dispatch');
+        $this->assertLessThan($initialCrystal, $afterDispatchCrystal, 'Crystal should be deducted after dispatch');
+        $this->assertLessThan($initialDeuterium, $afterDispatchDeuterium, 'Deuterium should be deducted after dispatch');
+
+        // Advance time to expedition arrival (1 hour holding time + travel time)
+        $fleetMission = $fleetMissionService->getFleetMissionById($fleetMissionId, false);
+        $travelTime = $fleetMission->time_arrival - $fleetMission->time_departure;
+        $holdingTime = $fleetMission->time_holding ?? 0;
+        $this->travel($travelTime + $holdingTime + 1)->seconds();
+
+        // Trigger update to process the expedition arrival
+        $this->get('/overview');
+
+        // Verify return mission was created
+        $activeMissions = $fleetMissionService->getActiveFleetMissionsForCurrentPlayer();
+        $this->assertCount(1, $activeMissions, 'Return mission should be created');
+        $returnMission = $activeMissions->first();
+
+        // Verify return mission has original resources
+        $this->assertEquals(100000, $returnMission->metal);
+        $this->assertEquals(50000, $returnMission->crystal);
+        $this->assertEquals(10000, $returnMission->deuterium);
+
+        // Advance time to return mission arrival
+        $this->travel($travelTime + 1)->seconds();
+
+        // Trigger update to process the return
+        $this->get('/overview');
+        $this->planetService->reloadPlanet();
+
+        // Verify resources were returned to the planet
+        $finalMetal = $this->planetService->metal()->get();
+        $finalCrystal = $this->planetService->crystal()->get();
+        $finalDeuterium = $this->planetService->deuterium()->get();
+
+        // The final resources should be approximately equal to initial resources minus fuel consumption
+        // We allow some tolerance for fuel consumption
+        $this->assertGreaterThan($afterDispatchMetal, $finalMetal, 'Metal should be returned to planet');
+        $this->assertGreaterThan($afterDispatchCrystal, $finalCrystal, 'Crystal should be returned to planet');
+        $this->assertGreaterThan($afterDispatchDeuterium, $finalDeuterium, 'Deuterium should be returned to planet (minus fuel)');
+
+        // Verify the exact amounts returned match what was sent
+        $metalReturned = $finalMetal - $afterDispatchMetal;
+        $crystalReturned = $finalCrystal - $afterDispatchCrystal;
+
+        $this->assertEquals(100000, $metalReturned, 'Exact metal amount should be returned');
+        $this->assertEquals(50000, $crystalReturned, 'Exact crystal amount should be returned');
+    }
+
+    /**
+     * Test that expedition preserves original resources and adds found resources.
+     */
+    public function testExpeditionPreservesOriginalResourcesAndAddsFound(): void
+    {
+        $this->basicSetup();
+
+        // Add resources to the planet
+        $this->planetAddResources(new Resources(500000, 300000, 200000, 0));
+
+        // Resources to send with the expedition
+        $resourcesToSend = new Resources(50000, 25000, 5000, 0);
+
+        // Send expedition with resources
+        $unitCollection = new UnitCollection();
+        $unitCollection->addUnit(ObjectService::getUnitObjectByMachineName('large_cargo'), 100);
+
+        // Enable only the "gain resources" outcome
+        $this->settingsEnableExpeditionOutcomes([ExpeditionOutcomeType::GainResources]);
+
+        $this->sendMissionToPosition16($unitCollection, $resourcesToSend, true);
+
+        // Get the mission ID
+        $fleetMissionService = resolve(FleetMissionService::class);
+        $activeMissions = $fleetMissionService->getActiveFleetMissionsForCurrentPlayer();
+        $fleetMissionId = $activeMissions->first()->id;
+
+        // Advance time to expedition arrival
+        $fleetMission = $fleetMissionService->getFleetMissionById($fleetMissionId, false);
+        $travelTime = $fleetMission->time_arrival - $fleetMission->time_departure;
+        $holdingTime = $fleetMission->time_holding ?? 0;
+        $this->travel($travelTime + $holdingTime + 1)->seconds();
+
+        // Trigger update to process the expedition arrival
+        $this->get('/overview');
+
+        // Verify return mission was created
+        $activeMissions = $fleetMissionService->getActiveFleetMissionsForCurrentPlayer();
+        $this->assertCount(1, $activeMissions, 'Return mission should be created');
+        $returnMission = $activeMissions->first();
+
+        // Verify return mission has at least original resources (should have more from found resources)
+        $this->assertGreaterThanOrEqual(50000, $returnMission->metal);
+        $this->assertGreaterThanOrEqual(25000, $returnMission->crystal);
+        $this->assertGreaterThanOrEqual(5000, $returnMission->deuterium);
+
+        $hasFoundResources = ($returnMission->metal > 50000) ||
+                            ($returnMission->crystal > 25000) ||
+                            ($returnMission->deuterium > 5000);
+        $this->assertTrue($hasFoundResources);
+    }
+
+    /**
+     * Send an expedition mission expecting merchant found result.
+     * Verifies that finding a merchant on expedition:
+     * - Calls a random resource trader (metal/crystal/deuterium)
+     * - Sends the correct expedition message
+     * - Makes the merchant available for trading
+     *
+     * @return void
+     */
+    public function testExpeditionWithGainMerchantResult(): void
+    {
+        $this->basicSetup();
+
+        // Enable only the "merchant trade" expedition outcome
+        $this->settingsEnableExpeditionOutcomes([ExpeditionOutcomeType::GainMerchantTrade]);
+
+        // Verify no merchant is active initially
+        $player = $this->planetService->getPlayer();
+        $this->assertNull(session()->get('active_merchant_' . $player->getId()));
+
+        // Send the expedition mission
+        $this->sendTestExpedition(true);
+
+        // Wait for the mission to complete
+        $this->travel(10)->hours();
+
+        // Load the planet again to trigger mission processing
+        $this->get('/overview');
+        $this->planetService->reloadPlanet();
+
+        // Verify that a merchant was called and is now active
+        $activeMerchant = session()->get('active_merchant_' . $player->getId());
+        // @phpstan-ignore-next-line - PHPStan doesn't understand session()->get() can return non-null values
+        $this->assertNotNull($activeMerchant, 'Merchant should be active after expedition');
+        $this->assertContains(
+            $activeMerchant['type'],
+            ['metal', 'crystal', 'deuterium'],
+            'Expedition should call a resource trader (metal/crystal/deuterium)'
+        );
+        $this->assertArrayHasKey(
+            'trade_rates',
+            $activeMerchant,
+            'Active merchant should have trade rates'
+        );
+
+        // Assert that the expedition message was sent
+        // Check that we have at least one expedition merchant message
+        $messages = \OGame\Models\Message::where('user_id', $player->getId())
+            ->where('key', 'expedition_merchant_found')
+            ->get();
+
+        $this->assertGreaterThan(
+            0,
+            $messages->count(),
+            'Expected at least one expedition merchant found message to be sent.'
+        );
+
+        // Verify the merchant actually appears in the UI on the resource market page
+        $response = $this->get('/merchant/resource-market');
+        $response->assertStatus(200);
+
+        // Should show "Already paid" section (not "Call merchant")
+        $response->assertSee('Already paid', false);
+        $response->assertSee('trade', false);
+
+        // Should have the active merchant highlighted with 'active' class
+        $merchantType = $activeMerchant['type'];
+        $response->assertSee('data-resource-type="' . $merchantType . '"', false);
     }
 
     /**
