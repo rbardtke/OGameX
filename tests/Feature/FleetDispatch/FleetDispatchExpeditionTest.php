@@ -784,6 +784,9 @@ class FleetDispatchExpeditionTest extends FleetDispatchTestCase
     }
 
     /**
+     * Set the expedition outcomes in the settings service using the weight system.
+     * This method ensures only the specified outcomes can occur by setting their weights high
+     * and disabling all others.
      * Send an expedition mission expecting merchant found result.
      * Verifies that finding a merchant on expedition:
      * - Calls a random resource trader (metal/crystal/deuterium)
@@ -801,7 +804,7 @@ class FleetDispatchExpeditionTest extends FleetDispatchTestCase
 
         // Verify no merchant is active initially
         $player = $this->planetService->getPlayer();
-        $this->assertNull(session()->get('active_merchant_' . $player->getId()));
+        $this->assertNull(cache()->get('active_merchant_' . $player->getId()));
 
         // Send the expedition mission
         $this->sendTestExpedition(true);
@@ -813,9 +816,9 @@ class FleetDispatchExpeditionTest extends FleetDispatchTestCase
         $this->get('/overview');
         $this->planetService->reloadPlanet();
 
-        // Verify that a merchant was called and is now active
-        $activeMerchant = session()->get('active_merchant_' . $player->getId());
-        // @phpstan-ignore-next-line - PHPStan doesn't understand session()->get() can return non-null values
+        // Verify that a merchant was called and is now active (stored in cache for persistence)
+        $activeMerchant = cache()->get('active_merchant_' . $player->getId());
+        // @phpstan-ignore-next-line - PHPStan doesn't understand cache()->get() can return non-null values
         $this->assertNotNull($activeMerchant, 'Merchant should be active after expedition');
         $this->assertContains(
             $activeMerchant['type'],
@@ -863,14 +866,61 @@ class FleetDispatchExpeditionTest extends FleetDispatchTestCase
     {
         $settingsService = resolve(SettingsService::class);
 
-        // Disable all expedition outcomes.
-        foreach (ExpeditionOutcomeType::cases() as $outcome) {
-            $settingsService->set($outcome->getSettingKey(), 0);
+        // Ensure default expedition settings are initialized (bonus slots and multipliers)
+        if (!$settingsService->get('bonus_expedition_slots')) {
+            $settingsService->set('bonus_expedition_slots', 0);
+        }
+        if (!$settingsService->get('expedition_reward_multiplier_resources')) {
+            $settingsService->set('expedition_reward_multiplier_resources', '1.0');
+            $settingsService->set('expedition_reward_multiplier_ships', '1.0');
+            $settingsService->set('expedition_reward_multiplier_dark_matter', '1.0');
+            $settingsService->set('expedition_reward_multiplier_items', '1.0');
         }
 
-        // Enable the specified outcomes.
+        // Map outcome types to their weight setting keys using enum values as strings
+        $weightMapping = [
+            ExpeditionOutcomeType::GainDarkMatter->value => 'expedition_weight_dark_matter',
+            ExpeditionOutcomeType::GainShips->value => 'expedition_weight_ships',
+            ExpeditionOutcomeType::GainResources->value => 'expedition_weight_resources',
+            ExpeditionOutcomeType::FailedAndDelay->value => 'expedition_weight_delay',
+            ExpeditionOutcomeType::FailedAndSpeedup->value => 'expedition_weight_speedup',
+            ExpeditionOutcomeType::Failed->value => 'expedition_weight_nothing',
+            ExpeditionOutcomeType::LossOfFleet->value => 'expedition_weight_black_hole',
+            ExpeditionOutcomeType::GainMerchantTrade->value => 'expedition_weight_merchant',
+            ExpeditionOutcomeType::GainItems->value => 'expedition_weight_merchant', // Items use merchant weight for now
+            // Note: Pirates and Aliens weights exist in settings but their outcome types are not yet implemented
+        ];
+
+        // Ensure all weights are initialized with their defaults if not already set
+        $defaultWeights = [
+            'expedition_weight_ships' => '22',
+            'expedition_weight_resources' => '32.5',
+            'expedition_weight_delay' => '7',
+            'expedition_weight_speedup' => '2',
+            'expedition_weight_nothing' => '26.5',
+            'expedition_weight_black_hole' => '0.3',
+            'expedition_weight_dark_matter' => '9',
+            'expedition_weight_merchant' => '0.7',
+            'expedition_weight_pirates' => '0',
+            'expedition_weight_aliens' => '0',
+        ];
+
+        foreach ($defaultWeights as $key => $defaultValue) {
+            if (!$settingsService->get($key)) {
+                $settingsService->set($key, $defaultValue);
+            }
+        }
+
+        // Set all weights to 0 (disabled) to isolate the test
+        foreach ($defaultWeights as $key => $value) {
+            $settingsService->set($key, 0);
+        }
+
+        // Set weight to 100 for specified outcomes (enabled with high probability)
         foreach ($outcomes as $outcome) {
-            $settingsService->set($outcome->getSettingKey(), 1);
+            if (isset($weightMapping[$outcome->value])) {
+                $settingsService->set($weightMapping[$outcome->value], 100);
+            }
         }
     }
 }

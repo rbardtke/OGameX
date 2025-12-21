@@ -145,8 +145,9 @@ class MerchantTest extends AccountTestCase
         $this->planetService->save();
 
         // Calculate a safe trade amount that won't exceed storage
-        // With rates between 1.40-2.00, trading 5000 metal = 7000-10000 crystal (within 10k storage)
-        $giveAmount = 5000;
+        // Exchange rates can vary (up to ~2.5x), so use a conservative amount
+        // to ensure we stay within 10k storage capacity: 3000 * 2.5 = 7500 (safe)
+        $giveAmount = 3000;
 
         // Execute trade
         $response = $this->post('/merchant/trade', [
@@ -619,7 +620,7 @@ class MerchantTest extends AccountTestCase
         $player = $this->planetService->getPlayer();
 
         // No active merchant initially
-        $this->assertNull(session()->get('active_merchant_' . $player->getId()));
+        $this->assertNull(cache()->get('active_merchant_' . $player->getId()));
 
         // Add expedition bonus - should call a random resource trader
         $result = MerchantService::addExpeditionBonus($player);
@@ -628,10 +629,10 @@ class MerchantTest extends AccountTestCase
         $this->assertTrue($result['called_new']);
         $this->assertContains($result['merchant_type'], ['metal', 'crystal', 'deuterium']);
 
-        // Verify merchant is now active in session
-        $activeMerchant = session()->get('active_merchant_' . $player->getId());
-        // @phpstan-ignore-next-line - PHPStan doesn't understand session()->get() can return non-null values
-        $this->assertNotNull($activeMerchant, 'Merchant should be active in session');
+        // Verify merchant is now active in cache
+        $activeMerchant = cache()->get('active_merchant_' . $player->getId());
+        // @phpstan-ignore-next-line - PHPStan doesn't understand cache()->get() can return non-null values
+        $this->assertNotNull($activeMerchant, 'Merchant should be active in cache');
         $this->assertEquals($result['merchant_type'], $activeMerchant['type']);
         $this->assertArrayHasKey('trade_rates', $activeMerchant);
     }
@@ -645,8 +646,8 @@ class MerchantTest extends AccountTestCase
 
         // Call expedition merchant multiple times to verify it's always a resource trader
         for ($i = 0; $i < 10; $i++) {
-            // Clear session
-            session()->forget('active_merchant_' . $player->getId());
+            // Clear cache
+            cache()->forget('active_merchant_' . $player->getId());
 
             $result = MerchantService::addExpeditionBonus($player);
 
@@ -697,8 +698,8 @@ class MerchantTest extends AccountTestCase
 
         $originalRates = $callResponse->json()['tradeRates'];
 
-        // Mock session to ensure we have control over rates
-        session()->put('active_merchant_' . $player->getId(), [
+        // Mock cache to ensure we have control over rates
+        cache()->forever('active_merchant_' . $player->getId(), [
             'type' => 'metal',
             'trade_rates' => $originalRates,
             'called_at' => time(),
@@ -711,8 +712,8 @@ class MerchantTest extends AccountTestCase
         // Verify the merchant type stayed the same
         $this->assertEquals('metal', $result['merchant_type']);
 
-        // Get updated session
-        $activeMerchant = session()->get('active_merchant_' . $player->getId());
+        // Get updated cache
+        $activeMerchant = cache()->get('active_merchant_' . $player->getId());
         $this->assertNotNull($activeMerchant);
         $this->assertEquals('metal', $activeMerchant['type']);
 
@@ -736,7 +737,7 @@ class MerchantTest extends AccountTestCase
         $player = $this->planetService->getPlayer();
 
         // No active merchant
-        $this->assertNull(session()->get('active_merchant_' . $player->getId()));
+        $this->assertNull(cache()->get('active_merchant_' . $player->getId()));
 
         // Add expedition bonus - should call a new merchant
         $result = MerchantService::addExpeditionBonus($player);
@@ -747,9 +748,9 @@ class MerchantTest extends AccountTestCase
         $this->assertContains($result['merchant_type'], ['metal', 'crystal', 'deuterium']);
 
         // Verify merchant is now active
-        $activeMerchant = session()->get('active_merchant_' . $player->getId());
-        // @phpstan-ignore-next-line - PHPStan doesn't understand session()->get() can return non-null values
-        $this->assertNotNull($activeMerchant, 'Merchant should be active in session');
+        $activeMerchant = cache()->get('active_merchant_' . $player->getId());
+        // @phpstan-ignore-next-line - PHPStan doesn't understand cache()->get() can return non-null values
+        $this->assertNotNull($activeMerchant, 'Merchant should be active in cache');
         $this->assertEquals($result['merchant_type'], $activeMerchant['type']);
     }
 
@@ -781,7 +782,7 @@ class MerchantTest extends AccountTestCase
         $this->assertEquals('crystal', $response2->json()['tradeRates']['give']);
 
         // Verify only crystal merchant is active
-        $activeMerchant = session()->get('active_merchant_' . $player->getId());
+        $activeMerchant = cache()->get('active_merchant_' . $player->getId());
         $this->assertEquals('crystal', $activeMerchant['type']);
     }
 }

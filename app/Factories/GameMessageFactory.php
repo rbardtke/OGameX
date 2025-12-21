@@ -27,6 +27,7 @@ class GameMessageFactory
         'fleet_deployment' => \OGame\GameMessages\FleetDeployment::class,
         'fleet_deployment_with_resources' => \OGame\GameMessages\FleetDeploymentWithResources::class,
         'espionage_report' => \OGame\GameMessages\EspionageReport::class,
+        'espionage_detected' => \OGame\GameMessages\DefenderEspionageDetected::class,
         'battle_report' => \OGame\GameMessages\BattleReport::class,
         'fleet_lost_contact' => \OGame\GameMessages\FleetLostContact::class,
         'debris_field_harvest' => \OGame\GameMessages\DebrisFieldHarvest::class,
@@ -40,6 +41,7 @@ class GameMessageFactory
         'expedition_gain_item' => \OGame\GameMessages\ExpeditionGainItem::class,
         'expedition_gain_resources' => \OGame\GameMessages\ExpeditionGainResources::class,
         'expedition_gain_ships' => \OGame\GameMessages\ExpeditionGainShips::class,
+        'expedition_merchant_found' => \OGame\GameMessages\ExpeditionMerchantFound::class,
 
         // Buddy system messages
         'buddy_request_received' => \OGame\GameMessages\BuddyRequestReceived::class,
