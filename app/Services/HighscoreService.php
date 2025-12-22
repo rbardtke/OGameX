@@ -282,6 +282,7 @@ class HighscoreService
                     'planet_coords' => $mainPlanet->getPlanetCoordinates(),
                     'rank' => $playerScore->{$this->highscoreType->name.'_rank'},
                     'is_admin' => $playerService->isAdmin(),
+                    'honor_points' => $playerScore->player->honor_points ?? 0,
                 ];
             }
             return $parsedHighscores;

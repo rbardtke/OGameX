@@ -161,8 +161,8 @@
         </div>
         <br class="clearfloat">
         <div class="fightdetails">
-           @lang(' Honour points'):<br> (<span class="overmark">@lang('Dishonourable fight'): -0</span>)
-            @lang('vs'). (<span class="undermark">@lang('Honourable fight'): +0</span>)
+           @lang(' Honour points'):<br> (<span class="{{ $attacker_honor_points < 0 ? 'overmark' : 'undermark' }}">{{ $attacker_honor_points >= 0 ? '+' : '' }}{{ $attacker_honor_points }}</span>)
+            @lang('vs'). (<span class="{{ $defender_honor_points < 0 ? 'overmark' : 'undermark' }}">{{ $defender_honor_points >= 0 ? '+' : '' }}{{ $defender_honor_points }}</span>)
         </div>
 @if ($moon_created)
         <div class="og_video">

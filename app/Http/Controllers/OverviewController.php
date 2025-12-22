@@ -91,7 +91,7 @@ class OverviewController extends OGameController
             'user_points' => $user_score,
             'user_rank' => $user_rank,
             'max_rank' => $max_ranks,
-            'user_honor_points' => 0, // @TODO
+            'user_honor_points' => AppUtil::formatNumber($player->getUser()->honor_points),
             'build_active' => $build_active,
             'building_count' => $player->planets->current()->getBuildingCount(),
             'max_building_count' => $player->planets->current()->getPlanetFieldMax(),

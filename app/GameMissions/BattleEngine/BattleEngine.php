@@ -9,6 +9,7 @@ use OGame\GameMissions\BattleEngine\Services\LootService;
 use OGame\GameObjects\Models\Enums\GameObjectType;
 use OGame\GameObjects\Models\Units\UnitCollection;
 use OGame\Models\Resources;
+use OGame\Services\HonorService;
 use OGame\Services\PlanetService;
 use OGame\Services\PlayerService;
 use OGame\Services\SettingsService;
@@ -155,6 +156,28 @@ abstract class BattleEngine
             $result->moonChance = $this->calculateMoonChance($result->debris);
             $result->moonCreated = $this->rollMoonCreation($result->moonChance);
         }
+
+        // Calculate honor points from battle
+        $honorService = app(HonorService::class);
+        $defenderPlayer = $this->defenderPlanet->getPlayer();
+
+        // Calculate honor for attacker based on defender units destroyed
+        $attackerHonor = $honorService->calculateHonorPointsFromBattle(
+            $result->defenderUnitsLost,
+            $result->defenderUnitsStart,
+            $this->attackerPlayer,
+            $defenderPlayer
+        );
+        $result->attackerHonorPoints = $attackerHonor['attacker'];
+
+        // Calculate honor for defender based on attacker units destroyed
+        $defenderHonor = $honorService->calculateHonorPointsFromBattle(
+            $result->attackerUnitsLost,
+            $result->attackerUnitsStart,
+            $defenderPlayer,
+            $this->attackerPlayer
+        );
+        $result->defenderHonorPoints = $defenderHonor['attacker'];
 
         return $result;
     }

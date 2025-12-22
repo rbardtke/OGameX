@@ -27,6 +27,7 @@ use Spatie\Permission\Traits\HasRoles;
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property int|null $planet_current
  * @property int $dark_matter
+ * @property int $honor_points
  * @property \Illuminate\Support\Carbon|null $dark_matter_last_regen
  * @property bool $vacation_mode
  * @property \Illuminate\Support\Carbon|null $vacation_mode_activated_at

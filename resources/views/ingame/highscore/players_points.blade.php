@@ -89,7 +89,7 @@
             </span>
 
                             <span class="honorScore">
-(<span class="undermark tooltip js_hideTipOnMobile" title="Honour points">0</span>)
+(<span class="undermark tooltip js_hideTipOnMobile" title="Honour points">{{ $highscorePlayer['honor_points'] }}</span>)
 </span>
                         </a>
                     </td>

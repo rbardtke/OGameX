@@ -123,4 +123,14 @@ class BattleResult
      * repaired and restored to the defender's planet after battle.
      */
     public UnitCollection $repairedDefenses;
+
+    /**
+     * @var int Honor points gained/lost by the attacker from this battle.
+     */
+    public int $attackerHonorPoints = 0;
+
+    /**
+     * @var int Honor points gained/lost by the defender from this battle.
+     */
+    public int $defenderHonorPoints = 0;
 }

@@ -307,6 +307,8 @@ class BattleReport extends GameMessage
             'defender_planet_link' => route('galaxy.index', ['galaxy' => $planet->getPlanetCoordinates()->galaxy, 'system' => $planet->getPlanetCoordinates()->system, 'position' => $planet->getPlanetCoordinates()->position]),
             'attacker_losses' => AppUtil::formatNumberLong($attackerLosses),
             'defender_losses' => AppUtil::formatNumberLong($defenderLosses),
+            'attacker_honor_points' => $this->battleReportModel->attacker['honor_points'] ?? 0,
+            'defender_honor_points' => $this->battleReportModel->defender['honor_points'] ?? 0,
             'loot' => AppUtil::formatNumberShort($lootResources->sum()),
             'loot_resources' => $lootResources,
             'loot_percentage' => $lootPercentage,

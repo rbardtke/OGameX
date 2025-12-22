@@ -134,6 +134,11 @@ class AttackMission extends GameMission
             $this->planetServiceFactory->createMoonForPlanet($defenderPlanet, $debrisAmount, $battleResult->moonChance);
         }
 
+        // Award honor points to attacker and defender
+        $honorService = app(\OGame\Services\HonorService::class);
+        $honorService->awardHonorPoints($attackerPlayer->getUser(), $battleResult->attackerHonorPoints);
+        $honorService->awardHonorPoints($defenderPlanet->getPlayer()->getUser(), $battleResult->defenderHonorPoints);
+
         // Check if attacker fleet was destroyed in first round
         $attackerDestroyedFirstRound = false;
         if (count($battleResult->rounds) > 0) {
@@ -266,6 +271,7 @@ class AttackMission extends GameMission
             'weapon_technology' => $battleResult->attackerWeaponLevel,
             'shielding_technology' => $battleResult->attackerShieldLevel,
             'armor_technology' => $battleResult->attackerArmorLevel,
+            'honor_points' => $battleResult->attackerHonorPoints,
         ];
 
         $report->defender = [
@@ -275,6 +281,7 @@ class AttackMission extends GameMission
             'weapon_technology' => $battleResult->defenderWeaponLevel,
             'shielding_technology' => $battleResult->defenderShieldLevel,
             'armor_technology' => $battleResult->defenderArmorLevel,
+            'honor_points' => $battleResult->defenderHonorPoints,
         ];
 
         $report->loot = [
