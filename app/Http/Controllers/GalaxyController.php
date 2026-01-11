@@ -536,7 +536,7 @@ class GalaxyController extends OGameController
                 'support' => [
                     'available' => $isTargetAdmin,
                     'playerId' => $player->getId(),
-                    'link' => 'javascript:void(0);', // TODO: Implement proper support contact link when messaging system is ready
+                    'link' => route('tickets.create'),
                     'title' => 'Contact support',
                     'playerName' => $player->getUsername(),
                 ],

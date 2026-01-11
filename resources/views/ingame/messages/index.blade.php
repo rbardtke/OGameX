@@ -109,6 +109,21 @@
                                 <span class="icon_caption">Favourites</span>
                             </a>
                         </li>
+                        <li id="tabs-nfTickets" class="list_item ui-tabs-tab ui-corner-top ui-state-default ui-tab"
+                            data-tabid="7" role="tab" tabindex="-1" aria-controls="ui-id-14" aria-labelledby="ui-id-13"
+                            aria-selected="false" aria-expanded="false">
+                            <a href="{{ route('messages.ajax.gettabcontents', ['tab' => 'tickets']) }}"
+                               class="tabs_btn_img tb_tickets ui-tabs-anchor"
+                               rel="{{ route('messages.ajax.gettabcontents', ['tab' => 'tickets']) }}" role="presentation" tabindex="-1"
+                               id="ui-id-13">
+                                @if (isset($unread_messages_count['tickets']) && $unread_messages_count['tickets'] > 0)
+                                    <span class="new_msg_count">{{ $unread_messages_count['tickets'] }}</span>
+                                @endif
+                                <img src="/img/icons/3e567d6f16d040326c7a0ea29a4f41.gif" height="54" width="54">
+                                <div class="marker"></div>
+                                <span class="icon_caption">Tickets</span>
+                            </a>
+                        </li>
                     </ul>
                     <div id="ui-id-2" aria-live="polite" aria-labelledby="ui-id-1" role="tabpanel"
                          class="ui-tabs-panel ui-corner-bottom ui-widget-content" aria-hidden="false">
@@ -126,6 +141,9 @@
                          class="ui-tabs-panel ui-corner-bottom ui-widget-content" aria-hidden="true"
                          style="display: none;"></div>
                     <div id="ui-id-12" aria-live="polite" aria-labelledby="ui-id-11" role="tabpanel"
+                         class="ui-tabs-panel ui-corner-bottom ui-widget-content" aria-hidden="true"
+                         style="display: none;"></div>
+                    <div id="ui-id-14" aria-live="polite" aria-labelledby="ui-id-13" role="tabpanel"
                          class="ui-tabs-panel ui-corner-bottom ui-widget-content" aria-hidden="true"
                          style="display: none;"></div>
                     <div class="ajax_load_shadow clearfix" style="display: none;">

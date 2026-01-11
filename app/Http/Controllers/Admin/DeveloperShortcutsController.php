@@ -24,12 +24,15 @@ class DeveloperShortcutsController extends OGameController
      *
      * @return View
      */
-    public function index(PlayerService $playerService, SettingsService $settingsService): View
+    public function index(Request $request, PlayerService $playerService, SettingsService $settingsService): View
     {
         // Get all unit objects
         $units = ObjectService::getUnitObjects();
 
-        return view('ingame.admin.developershortcuts')->with([
+        // Set active admin tab for the layout
+        $request->attributes->set('activeAdminTab', 'developershortcuts');
+
+        return view('ingame.admin.tabs.developershortcuts')->with([
             'units' => $units,
             'buildings' => [...ObjectService::getBuildingObjects(), ...ObjectService::getStationObjects()],
             'research' => ObjectService::getResearchObjects(),

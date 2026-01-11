@@ -28,6 +28,9 @@ class AppServiceProvider extends ServiceProvider
         // Register composer file for the main ingame layout.
         view()->composer('ingame.layouts.main', 'OGame\Http\ViewComposers\IngameMainComposer');
 
+        // Register composer file for the admin layout.
+        view()->composer('ingame.layouts.admin', 'OGame\Http\ViewComposers\AdminLayoutComposer');
+
         // Register model observers
         User::observe(UserObserver::class);
     }

@@ -1,8 +1,11 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use OGame\Http\Controllers\Admin\AdminEventSettingsController;
+use OGame\Http\Controllers\Admin\AdminTicketsController;
 use OGame\Http\Controllers\Admin\DeveloperShortcutsController;
 use OGame\Http\Controllers\Admin\ServerSettingsController as AdminServerSettingsController;
+use OGame\Http\Controllers\TicketsController;
 use OGame\Http\Controllers\AllianceController;
 use OGame\Http\Controllers\BuddiesController;
 use OGame\Http\Controllers\ChangeNickController;
@@ -211,8 +214,11 @@ Route::middleware(['auth', 'globalgame', 'locale', 'firstlogin'])->group(functio
     Route::get('/lang/{lang}', [LanguageController::class, 'switchLang'])->name('language.switch');
 });
 
-// Group: all logged in pages:
+// Group: Admin pages
 Route::middleware(['auth', 'globalgame', 'locale', 'admin'])->group(function () {
+    // Admin index (redirect to developer shortcuts)
+    Route::get('/admin', fn() => redirect()->route('admin.developershortcuts.index'))->name('admin.index');
+
     // Server settings
     Route::get('/admin/server-settings', [AdminServerSettingsController::class, 'index'])->name('admin.serversettings.index');
     Route::post('/admin/server-settings', [AdminServerSettingsController::class, 'update'])->name('admin.serversettings.update');
@@ -223,4 +229,25 @@ Route::middleware(['auth', 'globalgame', 'locale', 'admin'])->group(function () 
     Route::post('/admin/developer-shortcuts/resources', [DeveloperShortcutsController::class, 'updateResources'])->name('admin.developershortcuts.update-resources');
     Route::post('/admin/developershortcuts/create-at-coords', [DeveloperShortcutsController::class, 'createAtCoords'])->name('admin.developershortcuts.create-at-coords');
     Route::post('/admin/developershortcuts/create-debris', [DeveloperShortcutsController::class, 'createDebris'])->name('admin.developershortcuts.create-debris');
+
+    // Admin Tickets
+    Route::get('/admin/tickets', [AdminTicketsController::class, 'index'])->name('admin.tickets.index');
+    Route::get('/admin/tickets/{ticket}', [AdminTicketsController::class, 'show'])->name('admin.tickets.show');
+    Route::post('/admin/tickets/{ticket}/reply', [AdminTicketsController::class, 'reply'])->name('admin.tickets.reply');
+    Route::post('/admin/tickets/{ticket}/status', [AdminTicketsController::class, 'updateStatus'])->name('admin.tickets.status');
+
+    // Event Settings
+    Route::get('/admin/event-settings', [AdminEventSettingsController::class, 'index'])->name('admin.eventsettings.index');
+});
+
+// Group: User Tickets
+Route::middleware(['auth', 'globalgame', 'locale'])->group(function () {
+    Route::get('/tickets', [TicketsController::class, 'index'])->name('tickets.index');
+    Route::get('/tickets/create', [TicketsController::class, 'create'])->name('tickets.create');
+    Route::post('/tickets', [TicketsController::class, 'store'])->name('tickets.store');
+    Route::get('/tickets/{ticket}', [TicketsController::class, 'show'])->name('tickets.show');
+    Route::post('/tickets/{ticket}/reply', [TicketsController::class, 'reply'])->name('tickets.reply');
+
+    // AJAX for tickets tab in messages
+    Route::get('/messages/ajax/tickets', [TicketsController::class, 'ajaxGetTicketsTab'])->name('messages.ajax.tickets');
 });

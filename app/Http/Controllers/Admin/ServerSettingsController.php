@@ -4,6 +4,7 @@ namespace OGame\Http\Controllers\Admin;
 
 use Cache;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
 use OGame\Enums\HighscoreTypeEnum;
 use OGame\Http\Controllers\OGameController;
@@ -15,13 +16,17 @@ class ServerSettingsController extends OGameController
     /**
      * Shows the server settings page.
      *
+     * @param Request $request
      * @param PlayerService $player
      * @param SettingsService $settingsService
      * @return View
      */
-    public function index(PlayerService $player, SettingsService $settingsService): View
+    public function index(Request $request, PlayerService $player, SettingsService $settingsService): View
     {
-        return view('ingame.admin.serversettings')->with([
+        // Set active admin tab for the layout
+        $request->attributes->set('activeAdminTab', 'serversettings');
+
+        return view('ingame.admin.tabs.serversettings')->with([
             'fleet_speed_war' => $settingsService->fleetSpeedWar(),
             'fleet_speed_holding' => $settingsService->fleetSpeedHolding(),
             'fleet_speed_peaceful' => $settingsService->fleetSpeedPeaceful(),

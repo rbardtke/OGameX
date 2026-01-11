@@ -51,6 +51,9 @@ class MessageService
         'favorites' => [
             'favorites',
         ],
+        'tickets' => [
+            'tickets',
+        ],
     ];
 
     /**

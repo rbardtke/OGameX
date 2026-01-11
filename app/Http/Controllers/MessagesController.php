@@ -6,6 +6,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 use OGame\Services\MessageService;
+use OGame\Services\PlayerService;
+use OGame\Services\TicketService;
 
 class MessagesController extends OGameController
 {
@@ -22,6 +24,9 @@ class MessagesController extends OGameController
 
         // Get unread message count for each tab.
         // TODO: optimize this to get all unread messages count for all tabs in one query.
+        $ticketService = app(TicketService::class);
+        $playerService = app(PlayerService::class);
+
         $unread_messages_count = [
             'fleets' => $messageService->getUnreadMessagesCountForTab('fleets'),
             'communication' => $messageService->getUnreadMessagesCountForTab('communication'),
@@ -29,6 +34,7 @@ class MessagesController extends OGameController
             'universe' => $messageService->getUnreadMessagesCountForTab('universe'),
             'system' => $messageService->getUnreadMessagesCountForTab('system'),
             'favorites' => $messageService->getUnreadMessagesCountForTab('favorites'),
+            'tickets' => $ticketService->getUnreadCountForUser($playerService->getId()),
         ];
 
         // By default open the "Fleets/Espionage" tab.
@@ -87,6 +93,13 @@ class MessagesController extends OGameController
                 return view('ingame.messages.tabs.default.tab')->with([
                     'subtab_content' => $subtab_content,
                 ]);
+            case 'tickets':
+                $ticketService = app(TicketService::class);
+                $playerService = app(PlayerService::class);
+                $tickets = $ticketService->getUserTickets($playerService->getId());
+                return view('ingame.messages.tabs.tickets.tab')->with([
+                    'tickets' => $tickets,
+                ]);
             default:
                 return view('ingame.messages.tabs.fleets.tab')->with([
                     'subtab_content' => $subtab_content,
@@ -105,6 +118,22 @@ class MessagesController extends OGameController
      */
     protected function subTabContent(MessageService $messageService, string $tab, string $subtab = '', int $page = 1): View
     {
+        // Handle tickets tab separately
+        if ($tab === 'tickets') {
+            $ticketService = app(TicketService::class);
+            $playerService = app(PlayerService::class);
+
+            if ($subtab === 'create') {
+                return view('ingame.messages.tabs.tickets.subtab-create');
+            }
+
+            // Default to list subtab
+            $tickets = $ticketService->getUserTickets($playerService->getId());
+            return view('ingame.messages.tabs.tickets.subtab-list')->with([
+                'tickets' => $tickets,
+            ]);
+        }
+
         $result = $messageService->getMessagesForTab($tab, $subtab, $page);
 
         // Return the correct subtab view based on tab.
