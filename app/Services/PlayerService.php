@@ -469,12 +469,18 @@ class PlayerService
      */
     public function getCurrentPlanetId(): int
     {
-        if (!$this->user->planet_current) {
-            // If no current planet is set, return the first planet of the player.
-            return $this->planets->first()->getPlanetId();
+        // Use session for per-device/browser planet selection so multiple sessions
+        // on different devices don't interfere with each other.
+        // On a fresh session (new login) no session value exists and we fall through
+        // to the home planet — intentional so attackers can always observe activity
+        // on the home planet when a player comes online.
+        $sessionPlanetId = session('current_planet_id');
+        if ($sessionPlanetId && $this->planets->planetExistsAndOwnedByPlayer($sessionPlanetId)) {
+            return $sessionPlanetId;
         }
 
-        return $this->user->planet_current;
+        // Always default to home planet on fresh sessions.
+        return $this->planets->first()->getPlanetId();
     }
 
     /**
@@ -487,12 +493,11 @@ class PlayerService
         // Check if user owns this planet ID.
         // Planet ID 0 is always valid as that will be updated to the first planet of the player.
         if ($planet_id == 0) {
-            $this->user->planet_current = null;
-            $this->user->save();
+            session()->forget('current_planet_id');
             return;
         } elseif ($this->planets->planetExistsAndOwnedByPlayer($planet_id)) {
-            $this->user->planet_current = $planet_id;
-            $this->user->save();
+            // Store in session only — keeps each browser/device session independent.
+            session(['current_planet_id' => $planet_id]);
         }
     }
 
