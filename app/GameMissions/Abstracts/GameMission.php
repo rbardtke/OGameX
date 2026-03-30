@@ -512,6 +512,25 @@ abstract class GameMission
         $mission->time_arrival = $time_end;
         $mission->planet_id_to = $parentMission->planet_id_from;
 
+        // If the origin planet/moon was destroyed after departure (planet_id_from nullified by
+        // abandonPlanet()), try to resolve a landing spot from the origin coordinates so the
+        // returning fleet is not lost. For a destroyed moon, fall back to the parent planet.
+        if ($mission->planet_id_to === null && $parentMission->galaxy_from !== null) {
+            $originCoord = new Coordinate($parentMission->galaxy_from, $parentMission->system_from, $parentMission->position_from);
+            $originType = PlanetType::tryFrom($parentMission->type_from);
+            $originPlanet = $originType !== null
+                ? $this->planetServiceFactory->makeForCoordinate($originCoord, false, $originType)
+                : null;
+            if ($originPlanet === null && $originType === PlanetType::Moon) {
+                // Moon was destroyed — redirect to the planet at the same coordinates.
+                $originPlanet = $this->planetServiceFactory->makePlanetForCoordinate($originCoord, false);
+                if ($originPlanet !== null) {
+                    $mission->type_to = PlanetType::Planet->value;
+                }
+            }
+            $mission->planet_id_to = $originPlanet?->getPlanetId();
+        }
+
         // Coordinates
         $mission->galaxy_from = $parentMission->galaxy_to;
         $mission->system_from = $parentMission->system_to;

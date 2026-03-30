@@ -92,7 +92,30 @@ class DeploymentMission extends GameMission
      */
     protected function processReturn(FleetMission $mission): void
     {
-        $target_planet = $this->planetServiceFactory->make($mission->planet_id_to, true);
+        $target_planet = $mission->planet_id_to !== null
+            ? $this->planetServiceFactory->make($mission->planet_id_to, true)
+            : null;
+
+        // If planet_id_to is null (e.g. origin moon was destroyed after departure and the return
+        // mission was created before this was handled), fall back to the planet at the origin coords.
+        if ($target_planet === null && $mission->galaxy_to !== null) {
+            $originCoord = new Coordinate($mission->galaxy_to, $mission->system_to, $mission->position_to);
+            $originType = PlanetType::tryFrom($mission->type_to ?? 1);
+            $target_planet = $originType !== null
+                ? $this->planetServiceFactory->makeForCoordinate($originCoord, false, $originType)
+                : null;
+            if ($target_planet === null) {
+                $target_planet = $this->planetServiceFactory->makePlanetForCoordinate($originCoord, false);
+            }
+        }
+
+        if ($target_planet === null) {
+            // Should not happen in practice: the parent planet always exists because a planet
+            // cannot be abandoned while fleet missions are active. Guard here for safety.
+            $mission->processed = 1;
+            $mission->save();
+            return;
+        }
 
         // Transport return trip: add back the units to the source planet. Then we're done.
         $target_planet->addUnits($this->fleetMissionService->getFleetUnits($mission));
